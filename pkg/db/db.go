@@ -3,7 +3,6 @@ package db
 import (
 	"github.com/tecbot/gorocksdb"
 	log "github.com/sirupsen/logrus"
-	"errors"
 )
 
 
@@ -22,15 +21,16 @@ func CreateDB(path string) (*DB, error) {
 	opts.SetCreateIfMissing(true)
 	db, err := gorocksdb.OpenDb(opts, path)
 	
+	fmt.Println(path)
 	if err != nil {
-		log.Fatal("Can't Open Database")
+		log.Fatalf("Can't Open Database: %v", err)
 		return nil, err
 	}
 
 	return &DB{
 		path, db,
 		gorocksdb.NewDefaultReadOptions(),
-		gorocksdb.NewDefaultWriteOptions()
+		gorocksdb.NewDefaultWriteOptions(),
 	}, nil
 }
 
@@ -47,7 +47,7 @@ func (db *DB) PutData(key []byte, value []byte) error {
 	return db.database.Put(db.writeOpts, key, value)
 }
 
-func (db *DB) DeleleData(key []byte) error {
+func (db *DB) DeleteData(key []byte) error {
 	return db.database.Delete(db.writeOpts, key)
 }
 

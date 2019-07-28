@@ -7,20 +7,20 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type MTiKVService struct {
+type MTikvService struct {
 	db *db.DB
 }
 
-func NewMTiKVService(db *db.DB) pb.MTikvServiceServer {
-	return &MTiKVService{
+func NewMTikvService(db *db.DB) kvpb.MTikvServiceServer {
+	return &MTikvService{
 		db: db,
 	}
 }
 
-func (service MTikvService) Put(ctx context.Context, msg *pb.PutRequest) (*pb.PutResponse, error) {
-	log.Fatalf("Received: Key: %#v Value: %#v\n", in.Key, in.Value)
+func (service MTikvService) Put(ctx context.Context, msg *kvpb.PutRequest) (*kvpb.PutResponse, error) {
+	log.Fatalf("Received: Key: %#v Value: %#v\n", msg.Key, msg.Value)
 	
-	err := service.db.PutData(in.Key, in.Value)
+	err := service.db.PutData(msg.Key, msg.Value)
 	if err != nil {
 		log.Fatalf("Can't Put Key-Value: %v", err)
 		return &kvpb.PutResponse{Error: "failure"}, err
@@ -28,9 +28,9 @@ func (service MTikvService) Put(ctx context.Context, msg *pb.PutRequest) (*pb.Pu
 	return &kvpb.PutResponse{Error: "success"}, nil
 }
 
-func (service MTikvService) Get(ctx context.Context, msg *pb.GetRequest) (*pb.GetResponse, error) {
-	log.Fatalf("Received: Key: %#v\n", in.Key)
-	data, err := service.db.GetData(in.Key)
+func (service MTikvService) Get(ctx context.Context, msg *kvpb.GetRequest) (*kvpb.GetResponse, error) {
+	log.Fatalf("Received: Key: %#v\n", msg.Key)
+	data, err := service.db.GetData(msg.Key)
 	if err != nil {
 		log.Fatalf("Can't Get Value: %v", err)
 		return &kvpb.GetResponse{Error: "failure"}, err
@@ -38,12 +38,12 @@ func (service MTikvService) Get(ctx context.Context, msg *pb.GetRequest) (*pb.Ge
 	return &kvpb.GetResponse{Value: data, Error: "success"}, nil
 }
 
-func (service MTikvService) Delete(ctx context.Context, msg *pb.DeleteRequest) (*pb.DeleteResponse, error) {
-	log.Fatalf("Received: Key: %#v\n", in.Key)
-	err := service.db.DeleteData(in.Key)
+func (service MTikvService) Delete(ctx context.Context, msg *kvpb.DeleteRequest) (*kvpb.DeleteResponse, error) {
+	log.Fatalf("Received: Key: %#v\n", msg.Key)
+	err := service.db.DeleteData(msg.Key)
 	if err != nil {
 		log.Fatalf("Can't Delete Key: %v", err)
-		return &kvpb.PutResponse{Error: "failure"}, err
+		return &kvpb.DeleteResponse{Error: "failure"}, err
 	}
-	return &kvpb.PutResponse{Error: "success"}, nil
+	return &kvpb.DeleteResponse{Error: "success"}, nil
 }

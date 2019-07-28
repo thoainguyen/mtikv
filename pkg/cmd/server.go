@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"context"
-	"mtikv/config"
+	"mtikv/configs"
 	"mtikv/pkg/db"
 	grpc "mtikv/pkg/protocol/grpc"
 	mtikvservice "mtikv/pkg/service"
@@ -28,7 +28,7 @@ func RunServer() error {
 		return err
 	}
 
-	mTikvService := mtikvservice.NewMTiKVService(dba)
+	mTikvService := mtikvservice.NewMTikvService(dba)
 
 	return grpc.RunServer(ctx, mTikvService, strconv.Itoa(config.GRPCPort))
 }
