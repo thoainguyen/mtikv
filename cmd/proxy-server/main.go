@@ -9,6 +9,7 @@ import (
   "github.com/grpc-ecosystem/grpc-gateway/runtime"
   "google.golang.org/grpc"
 
+  log "github.com/sirupsen/logrus"
   gw "mtikv/pkg/api/kvpb"  // Update
 )
 
@@ -27,11 +28,10 @@ func run() error {
   // Note: Make sure the gRPC server is running properly and accessible
   mux := runtime.NewServeMux()
   opts := []grpc.DialOption{grpc.WithInsecure()}
-  err := gw.RegisterMTikvServiceFromEndpoint(ctx, mux,  *grpcServerEndpoint, opts)
+  err := gw.RegisterMTikvServiceHandlerFromEndpoint(ctx, mux,  *grpcServerEndpoint, opts)
   if err != nil {
     return err
   }
-
   // Start HTTP server (and proxy calls to gRPC server endpoint)
   return http.ListenAndServe(":8081", mux)
 }
@@ -39,7 +39,7 @@ func run() error {
 func main() {
   flag.Parse()
   defer glog.Flush()
-
+  log.Info("Start HTTP server (and proxy calls to gRPC server endpoint) port 8081")
   if err := run(); err != nil {
     glog.Fatal(err)
   }

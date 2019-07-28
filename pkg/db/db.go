@@ -20,8 +20,6 @@ func CreateDB(path string) (*DB, error) {
 	opts.SetBlockBasedTableFactory(bbto)
 	opts.SetCreateIfMissing(true)
 	db, err := gorocksdb.OpenDb(opts, path)
-	
-	fmt.Println(path)
 	if err != nil {
 		log.Fatalf("Can't Open Database: %v", err)
 		return nil, err
