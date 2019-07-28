@@ -18,7 +18,7 @@ func NewMTikvService(db *db.DB) kvpb.MTikvServiceServer {
 }
 
 func (service MTikvService) Put(ctx context.Context, msg *kvpb.PutRequest) (*kvpb.PutResponse, error) {
-	log.Fatalf("Received: Key: %#v Value: %#v\n", msg.Key, msg.Value)
+	log.Info("Received Put: Key: %#v Value: %#v\n", msg.Key, msg.Value)
 	
 	err := service.db.PutData(msg.Key, msg.Value)
 	if err != nil {
@@ -29,7 +29,7 @@ func (service MTikvService) Put(ctx context.Context, msg *kvpb.PutRequest) (*kvp
 }
 
 func (service MTikvService) Get(ctx context.Context, msg *kvpb.GetRequest) (*kvpb.GetResponse, error) {
-	log.Fatalf("Received: Key: %#v\n", msg.Key)
+	log.Info("Received Get: Key: %#v\n", msg.Key)
 	data, err := service.db.GetData(msg.Key)
 	if err != nil {
 		log.Fatalf("Can't Get Value: %v", err)
@@ -39,7 +39,7 @@ func (service MTikvService) Get(ctx context.Context, msg *kvpb.GetRequest) (*kvp
 }
 
 func (service MTikvService) Delete(ctx context.Context, msg *kvpb.DeleteRequest) (*kvpb.DeleteResponse, error) {
-	log.Fatalf("Received: Key: %#v\n", msg.Key)
+	log.Info("Received Delete: Key: %#v\n", msg.Key)
 	err := service.db.DeleteData(msg.Key)
 	if err != nil {
 		log.Fatalf("Can't Delete Key: %v", err)
