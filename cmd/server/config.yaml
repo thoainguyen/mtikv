@@ -1,0 +1,4 @@
+
+GRPCPort: 10002
+GRPCHost: "localhost"
+DBPath:   "../../data"
