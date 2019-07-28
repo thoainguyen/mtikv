@@ -5,20 +5,20 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	pb "mtikv/pkg/api"
+	"mtikv/pkg/api/kvpb"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
 
 //RunServer run gRPC service
-func RunServer(ctx context.Context, mTikvServer pb.MTikvServiceServer, port string) error {
+func RunServer(ctx context.Context, mTikvServer kvpb.MTikvServiceServer, port string) error {
 	listen, err := net.Listen("tcp", ":" + port)
 	if err != nil {
 		return err
 	}
 
 	server := grpc.NewServer()
-	pb.RegisterMTikvServiceServer(server, mTikvServer)
+	kvpb.RegisterMTikvServiceServer(server, mTikvServer)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)

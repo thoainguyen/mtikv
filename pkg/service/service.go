@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	pb "mtikv/pkg/api"
+	"mtikv/pkg/api/kvpb"
 	"mtikv/pkg/db"
 	log "github.com/sirupsen/logrus"
 )
@@ -23,9 +23,9 @@ func (service MTikvService) Put(ctx context.Context, msg *pb.PutRequest) (*pb.Pu
 	err := service.db.PutData(in.Key, in.Value)
 	if err != nil {
 		log.Fatalf("Can't Put Key-Value: %v", err)
-		return &pb.PutResponse{Error: "failure"}, err
+		return &kvpb.PutResponse{Error: "failure"}, err
 	}
-	return &pb.PutResponse{Error: "success"}, nil
+	return &kvpb.PutResponse{Error: "success"}, nil
 }
 
 func (service MTikvService) Get(ctx context.Context, msg *pb.GetRequest) (*pb.GetResponse, error) {
@@ -33,9 +33,9 @@ func (service MTikvService) Get(ctx context.Context, msg *pb.GetRequest) (*pb.Ge
 	data, err := service.db.GetData(in.Key)
 	if err != nil {
 		log.Fatalf("Can't Get Value: %v", err)
-		return &pb.GetResponse{Error: "failure"}, err
+		return &kvpb.GetResponse{Error: "failure"}, err
 	}
-	return &pb.GetResponse{Value: data, Error: "success"}, nil
+	return &kvpb.GetResponse{Value: data, Error: "success"}, nil
 }
 
 func (service MTikvService) Delete(ctx context.Context, msg *pb.DeleteRequest) (*pb.DeleteResponse, error) {
@@ -43,7 +43,7 @@ func (service MTikvService) Delete(ctx context.Context, msg *pb.DeleteRequest) (
 	err := service.db.DeleteData(in.Key)
 	if err != nil {
 		log.Fatalf("Can't Delete Key: %v", err)
-		return &pb.PutResponse{Error: "failure"}, err
+		return &kvpb.PutResponse{Error: "failure"}, err
 	}
-	return &pb.PutResponse{Error: "success"}, nil
+	return &kvpb.PutResponse{Error: "success"}, nil
 }
