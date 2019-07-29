@@ -8,47 +8,48 @@ import "google/api/annotations.proto";
 
 package kvpb;
 
-message GetRequest {
-    bytes key = 1;
+message RawGetRequest {
+    string key = 1;
 }
 
-message GetResponse {
-    bytes value = 1;
+message RawGetResponse {
+    string value = 1;
     string error = 2;
 }
 
-message PutRequest {
-    bytes key = 1;
-    bytes value = 2;
+message RawPutRequest {
+    string key = 1;
+    string value = 2;
 }
 
-message PutResponse {
+message RawPutResponse {
     string error = 1;
 }
 
-message DeleteRequest {
-    bytes key = 1;
+message RawDeleteRequest {
+    string key = 1;
 }
 
-message DeleteResponse {
+message RawDeleteResponse {
     string error = 1;
 }
 
-service MTikvService{
-    rpc Get (GetRequest) returns (GetResponse) {
+
+service KvService {
+    rpc RawGet (RawGetRequest) returns (RawGetResponse) {
         option (google.api.http) = {
             get: "/api/record/{key}"
         };
     }
 
-    rpc Put (PutRequest) returns (PutResponse) {
+    rpc RawPut (RawPutRequest) returns (RawPutResponse) {
         option (google.api.http) = {
             post: "/api/record"
             body: "*"
         };
     }
 
-    rpc Delete (DeleteRequest) returns (DeleteResponse) {
+    rpc RawDelete (RawDeleteRequest) returns (RawDeleteResponse) {
         option (google.api.http) = {
             delete: "/api/record/{key}"
         };

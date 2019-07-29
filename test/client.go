@@ -27,24 +27,24 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	r1, err1 := c.Put(ctx, &pb.PutRequest{Key: []byte("thoainh"), Value: []byte("Nguyen Huynh Thoai")})
+	r1, err1 := c.Put(ctx, &pb.PutRequest{Key: "thoainh", Value: "Nguyen Huynh Thoai"})
 	if err1 != nil {
 		log.Fatalf("could not put: %v", err1)
 	}
 
-	log.Infof("PutResponse : %#v", string(r1.Error))
+	log.Infof("PutResponse : %#v", r1.Error)
 
-	r2, err2 := c.Get(ctx, &pb.GetRequest{Key: []byte("thoainh")})
+	r2, err2 := c.Get(ctx, &pb.GetRequest{Key: "thoainh"})
 	if err2 != nil {
 		log.Fatalf("could not get: %v", err2)
 	}
 
-	log.Infof("GetResponse : %#v", string(r2.Value))
+	log.Infof("GetResponse : %#v", r2.Value)
 
-	r3, err3 := c.Delete(ctx, &pb.DeleteRequest{Key: []byte("thoainh")})
+	r3, err3 := c.Delete(ctx, &pb.DeleteRequest{Key: "thoainh"})
 	if err3 != nil {
 		log.Fatalf("could not delete: %v", err3)
 	}
 
-	log.Infof("DeleteResponse : %#v", string(r3.Error))
+	log.Infof("DeleteResponse : %#v", r3.Error)
 }

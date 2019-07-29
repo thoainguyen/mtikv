@@ -7,8 +7,8 @@ import (
 const configFilePath = "."
 const configFileName = "config"
 
-// MTikvServiceConfig struct
-type MTikvServiceConfig struct {
+// KvServiceConfig struct
+type KvServiceConfig struct {
 	GRPCPort int
 	GRPCHost string
 	DBPath   string

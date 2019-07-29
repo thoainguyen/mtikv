@@ -5,7 +5,7 @@ import (
 	"mtikv/configs"
 	"mtikv/pkg/db"
 	grpc "mtikv/pkg/protocol/grpc"
-	mtikvservice "mtikv/pkg/service"
+	kvservice "mtikv/pkg/service"
 	"strconv"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -16,7 +16,7 @@ func RunServer() error {
 	ctx := context.Background()
 
 	//load config
-	config := &configs.MTikvServiceConfig{}
+	config := &configs.KvServiceConfig{}
 	
 	if err := configs.LoadConfig(); err != nil {
 		log.Fatalf("LoadConfig: %v\n",err)
@@ -29,7 +29,7 @@ func RunServer() error {
 		return err
 	}
 
-	mTikvService := mtikvservice.NewMTikvService(dba)
+	kvService := kvservice.NewKvService(dba)
 
-	return grpc.RunServer(ctx, mTikvService, strconv.Itoa(config.GRPCPort))
+	return grpc.RunServer(ctx, kvService, strconv.Itoa(config.GRPCPort))
 }

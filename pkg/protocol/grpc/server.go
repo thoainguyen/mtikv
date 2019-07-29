@@ -11,14 +11,14 @@ import (
 )
 
 //RunServer run gRPC service
-func RunServer(ctx context.Context, mTikvServer kvpb.MTikvServiceServer, port string) error {
+func RunServer(ctx context.Context, kvServer kvpb.KvServiceServer, port string) error {
 	listen, err := net.Listen("tcp", ":" + port)
 	if err != nil {
 		return err
 	}
 
 	server := grpc.NewServer()
-	kvpb.RegisterMTikvServiceServer(server, mTikvServer)
+	kvpb.RegisterKvServiceServer(server, kvServer)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)

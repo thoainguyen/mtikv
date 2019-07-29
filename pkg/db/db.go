@@ -1,10 +1,9 @@
 package db
 
 import (
-	"github.com/tecbot/gorocksdb"
 	log "github.com/sirupsen/logrus"
+	"github.com/tecbot/gorocksdb"
 )
-
 
 type DB struct {
 	path      string
@@ -32,21 +31,21 @@ func CreateDB(path string) (*DB, error) {
 	}, nil
 }
 
-func (db *DB) GetData(key []byte) ([]byte, error) {
-	data, err := db.database.Get(db.readOpts, key)
+func (db *DB) GetData(key string) (string, error) {
+	data, err := db.database.Get(db.readOpts, []byte(key))
 	if err != nil {
 		log.Fatal("Can not Get Key")
-		return nil, err
+		return "", err
 	}
-	return data.Data(), nil
+	return string(data.Data()), nil
 }
 
-func (db *DB) PutData(key []byte, value []byte) error {
-	return db.database.Put(db.writeOpts, key, value)
+func (db *DB) PutData(key string, value string) error {
+	return db.database.Put(db.writeOpts, []byte(key), []byte(value))
 }
 
-func (db *DB) DeleteData(key []byte) error {
-	return db.database.Delete(db.writeOpts, key)
+func (db *DB) DeleteData(key string) error {
+	return db.database.Delete(db.writeOpts, []byte(key))
 }
 
 func (db *DB) CloseDB() error {
