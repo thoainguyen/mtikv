@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
-	log "github.com/sirupsen/logrus"
 	"time"
 
-	"google.golang.org/grpc"
+	log "github.com/sirupsen/logrus"
+
 	pb "mtikv/pkg/api/kvpb"
+
+	"google.golang.org/grpc"
 )
 
 const (
@@ -38,7 +40,6 @@ func main() {
 	}
 
 	log.Infof("GetResponse : %#v", string(r2.Value))
-
 
 	r3, err3 := c.Delete(ctx, &pb.DeleteRequest{Key: []byte("thoainh")})
 	if err3 != nil {

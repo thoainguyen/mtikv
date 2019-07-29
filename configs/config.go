@@ -11,7 +11,7 @@ const configFileName = "config"
 type MTikvServiceConfig struct {
 	GRPCPort int
 	GRPCHost string
-	DBPath	 string
+	DBPath   string
 }
 
 //LoadConfig load config
