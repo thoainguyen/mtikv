@@ -4,6 +4,7 @@ import (
 	"context"
 	"mtikv/pkg/api/kvpb"
 	"mtikv/pkg/db"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -19,7 +20,7 @@ func NewKvService(db *db.DB) kvpb.KvServiceServer {
 
 func (service KvService) RawPut(ctx context.Context, msg *kvpb.RawPutRequest) (*kvpb.RawPutResponse, error) {
 	log.Info("Received Put: Key: %#v Value: %#v\n", msg.Key, msg.Value)
-	
+
 	err := service.db.PutData(msg.Key, msg.Value)
 	if err != nil {
 		log.Fatalf("Can't Put Key-Value: %v", err)

@@ -1,12 +1,13 @@
-package cmd
+package kvpb
 
 import (
 	"context"
 	"mtikv/configs"
 	"mtikv/pkg/db"
-	grpc "mtikv/pkg/protocol/grpc"
-	kvservice "mtikv/pkg/service"
+	grpc "mtikv/pkg/protocol/grpc/kvpb"
+	kvservice "mtikv/pkg/service/kvpb"
 	"strconv"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
@@ -17,9 +18,9 @@ func RunServer() error {
 
 	//load config
 	config := &configs.KvServiceConfig{}
-	
+
 	if err := configs.LoadConfig(); err != nil {
-		log.Fatalf("LoadConfig: %v\n",err)
+		log.Fatalf("LoadConfig: %v\n", err)
 	}
 	if err := viper.Unmarshal(config); err != nil {
 		log.Fatalf("Unmarshal: %v\n", err)

@@ -8,7 +8,6 @@ import "google/api/annotations.proto";
 
 package raftpb;
 
-
 message GetRequest {
     string key = 1;
 }
@@ -34,7 +33,6 @@ message DeleteRequest {
 message DeleteResponse {
     string error = 1;
 }
-
 
 message AddNodeRequest {
     uint64 nodeId = 1;
@@ -67,7 +65,7 @@ service RaftService{
         };
     }
 
-        rpc Get (GetRequest) returns (GetResponse) {
+    rpc Get (GetRequest) returns (GetResponse) {
         option (google.api.http) = {
             get: "/api/record/{key}"
         };

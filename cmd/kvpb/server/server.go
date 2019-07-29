@@ -2,7 +2,7 @@ package main
 
 import (
 	"os"
-	"mtikv/pkg/cmd"
+	cmd "mtikv/pkg/cmd/kvpb"
 
 	log "github.com/sirupsen/logrus"
 )
