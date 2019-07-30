@@ -2,8 +2,8 @@ package service
 
 import (
 	"context"
-	"mtikv/pkg/api/kvpb"
-	db "mtikv/pkg/core/storage"
+	"github.com/thoainguyen/mtikv/pkg/api/kvpb"
+	db "github.com/thoainguyen/mtikv/pkg/core/storage"
 
 	log "github.com/sirupsen/logrus"
 )

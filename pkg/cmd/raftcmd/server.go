@@ -2,17 +2,17 @@ package raftcmd
 
 import (
 	"context"
-	"mtikv/configs"
-	"mtikv/pkg/core/raftstore"
-	db "mtikv/pkg/core/storage"
-	grpc "mtikv/pkg/protocol/grpc/raftcmd"
-	raftservice "mtikv/pkg/service/raftcmd"
+	"github.com/thoainguyen/mtikv/configs"
+	"github.com/thoainguyen/mtikv/pkg/core/raftstore"
+	db "github.com/thoainguyen/mtikv/pkg/core/storage"
+	grpc "github.com/thoainguyen/mtikv/pkg/protocol/grpc/raftcmd"
+	raftservice "github.com/thoainguyen/mtikv/pkg/service/raftcmd"
 	"strconv"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"go.etcd.io/etcd/raft/raftpb"
+	"github.com/etcd-io/etcd/raft/raftpb"
 )
 
 //RunServer run gRPC server
@@ -45,6 +45,5 @@ func RunServer(cluster *string, id *int, kvport *int, join *bool) error {
 
 	raftStore := raftstore.NewRaftApiMTikv(dba, proposeC, commitC, confChangeC, errorC)
 	raftService := raftservice.NewRaftService(raftStore)
-
 	return grpc.RunServer(ctx, raftService, strconv.Itoa(config.GRPCPort))
 }

@@ -2,8 +2,8 @@ package kvpb
 
 import (
 	"context"
-	"mtikv/configs"
-	db "mtikv/pkg/core/storage"
+	"github.com/thoainguyen/mtikv/configs"
+	db "github.com/thoainguyen/mtikv/pkg/core/storage"
 	grpc "mtikv/pkg/protocol/grpc/kvpb"
 	kvservice "mtikv/pkg/service/kvpb"
 	"strconv"

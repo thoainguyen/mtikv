@@ -2,8 +2,9 @@ package main
 
 import (
 	"flag"
-	cmd "mtikv/pkg/cmd/raftcmd"
 	"os"
+
+	cmd "github.com/thoainguyen/mtikv/pkg/cmd/raftcmd"
 
 	log "github.com/sirupsen/logrus"
 )

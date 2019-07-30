@@ -2,7 +2,7 @@ package kvpb
 
 import (
 	"context"
-	"mtikv/pkg/api/kvpb"
+	"github.com/thoainguyen/mtikv/pkg/api/kvpb"
 	"net"
 	"os"
 	"os/signal"

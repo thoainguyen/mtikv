@@ -2,8 +2,8 @@ package service
 
 import (
 	"context"
-	"mtikv/pkg/api/raftcmd"
-	"mtikv/pkg/core/raftstore"
+	"github.com/thoainguyen/mtikv/pkg/api/raftcmd"
+	"github.com/thoainguyen/mtikv/pkg/core/raftstore"
 
 	log "github.com/sirupsen/logrus"
 )

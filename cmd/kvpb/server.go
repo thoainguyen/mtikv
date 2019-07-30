@@ -1,8 +1,9 @@
 package main
 
 import (
-	cmd "mtikv/pkg/cmd/kvpb"
 	"os"
+
+	cmd "github.com/thoainguyen/mtikv/pkg/cmd/kvpb"
 
 	log "github.com/sirupsen/logrus"
 )

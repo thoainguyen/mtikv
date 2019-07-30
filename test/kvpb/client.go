@@ -6,7 +6,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	pb "mtikv/pkg/api/kvpb"
+	pb "github.com/thoainguyen/mtikv/pkg/api/kvpb"
 
 	"google.golang.org/grpc"
 )

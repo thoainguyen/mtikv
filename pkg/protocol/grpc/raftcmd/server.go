@@ -2,7 +2,7 @@ package kvpb
 
 import (
 	"context"
-	"mtikv/pkg/api/raftcmd"
+	"github.com/thoainguyen/mtikv/pkg/api/raftcmd"
 	"net"
 	"os"
 	"os/signal"
