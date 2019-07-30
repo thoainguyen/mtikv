@@ -29,7 +29,7 @@ func RunServer(cluster *string, id *int, kvport *int, join *bool) error {
 		log.Fatalf("Unmarshal: %v\n", err)
 	}
 
-	dba, err := db.CreateDB(config.DBPath+string(*id), config.DBSnapPath+string(*id))
+	dba, err := db.CreateDB(config.DBPath, config.DBSnapPath)
 	if err != nil {
 		return err
 	}

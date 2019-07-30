@@ -9,7 +9,7 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
 
-	gw "github.com/thoainguyen/mtikv/pkg/api/kvpb" // Update
+	gw "github.com/thoainguyen/mtikv/pkg/api/raftcmd" // Update
 
 	log "github.com/sirupsen/logrus"
 )
@@ -17,7 +17,8 @@ import (
 var (
 	// command-line options:
 	// gRPC server endpoint
-	grpcServerEndpoint = flag.String("kvpb", "localhost:10002", "gRPC server endpoint")
+	// kvServerEndpoint   = flag.String("kvpb", "localhost:10002", "gRPC server endpoint")
+	raftServerEndpoint = flag.String("raft", "localhost:10002", "gRPC server endpoint")
 )
 
 func run() error {
@@ -29,7 +30,7 @@ func run() error {
 	// Note: Make sure the gRPC server is running properly and accessible
 	mux := runtime.NewServeMux()
 	opts := []grpc.DialOption{grpc.WithInsecure()}
-	err := gw.RegisterKvServiceHandlerFromEndpoint(ctx, mux, *grpcServerEndpoint, opts)
+	err := gw.RegisterRaftServiceHandlerFromEndpoint(ctx, mux, *raftServerEndpoint, opts)
 	if err != nil {
 		return err
 	}
