@@ -12,6 +12,11 @@ import (
 	"github.com/spf13/viper"
 )
 
+//  kvStore     *db.DB
+//	mu          sync.RWMutex
+//	confChangeC chan<- raftpb.ConfChange
+//	proposeC    chan<- string
+
 //RunServer run gRPC server
 func RunServer() error {
 	ctx := context.Background()

@@ -1,10 +1,10 @@
-package raft
+package raftstore
 
 import (
 	"io/ioutil"
 	"log"
 	"bytes"
-	"mtikv/pkg/db"
+	"mtikv/pkg/core/storage"
 	"net/http"
 	"strconv"
 	"encoding/json"
