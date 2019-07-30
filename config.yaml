@@ -1,3 +1,4 @@
 GRPCHost: "localhost"
 GRPCPort: 10002
 DBPath:   "data"
+DBSnapPath : "backup"

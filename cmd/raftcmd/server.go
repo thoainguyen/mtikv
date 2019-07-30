@@ -1,12 +1,12 @@
 package main
 
 import (
+	"flag"
 	cmd "mtikv/pkg/cmd/raftcmd"
 	"os"
-	"flag"
+
 	log "github.com/sirupsen/logrus"
 )
-
 
 func main() {
 

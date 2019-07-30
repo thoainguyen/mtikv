@@ -16,7 +16,7 @@ import (
 )
 
 //RunServer run gRPC server
-func RunServer(cluster* string, id *int, kvport *int, join *bool) error {
+func RunServer(cluster *string, id *int, kvport *int, join *bool) error {
 	ctx := context.Background()
 
 	//load config
@@ -28,7 +28,7 @@ func RunServer(cluster* string, id *int, kvport *int, join *bool) error {
 		log.Fatalf("Unmarshal: %v\n", err)
 	}
 
-	dba, err := db.CreateDB(config.DBPath + *id)
+	dba, err := db.CreateDB(config.DBPath+*id, config.DBSnapPath+*id)
 	if err != nil {
 		return err
 	}

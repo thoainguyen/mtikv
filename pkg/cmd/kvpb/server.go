@@ -25,11 +25,11 @@ func RunServer() error {
 	if err := viper.Unmarshal(config); err != nil {
 		log.Fatalf("Unmarshal: %v\n", err)
 	}
-	dba, err := db.CreateDB(config.DBPath)
+	dba, err := db.CreateDB(config.DBPath, config.DBSnapPath)
 	if err != nil {
 		return err
 	}
-	
+
 	kvService := kvservice.NewKvService(dba)
 
 	return grpc.RunServer(ctx, kvService, strconv.Itoa(config.GRPCPort))

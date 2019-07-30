@@ -34,15 +34,29 @@ func NewRaftApiMTikv(kv *db.DB, proposeC chan<- string, commitC <- chan *string,
 		proposeC: proposeC,
 	}
 	s.rReadCommits(commitC, errorC)
-	// go s.rReadCommits(commitC, errorC)
+	go s.rReadCommits(commitC, errorC)
 	return s
 }
 
 func (raftLayer *RaftLayer) rReadCommits(commitC <- chan *string, errorC <- chan error) {
 	for data := range commitC {
 		if data == nil {
+			// done replaying log; new data incoming
+			// OR signaled to load snapshot
+			snapshot, err := s.snapshotter.Load()
+			if err == snap.ErrNoSnapshot {
+				return
+			}
+			if err != nil {
+				log.Panic(err)
+			}
+			log.Printf("loading snapshot at term %d and index %d", snapshot.Metadata.Term, snapshot.Metadata.Index)
+			if err := s.rRecoverFromSnapshot(snapshot.Data); err != nil {
+				log.Panic(err)
+			}
 			continue
 		}
+
 		var dataKv KeyValuePair
 		dec := gob.NewDecoder(bytes.NewBufferString(*data))
 		if err := dec.Decode(&dataKv); err != nil {
@@ -98,8 +112,7 @@ func (raftLayer *RaftLayer) rRemoveNode(nodeId string) {
 func (raftLayer *RaftLayer) rGetSnapshot() ([]byte, error) {
 	raftLayer.mu.RLock()
 	defer raftLayer.mu.RUnlock()
-	// TODO: Serialize all data, not only db.DB object
-	return json.Marshal(raftLayer.kvStore)
+	return []byte(raftLayer.kvStore.SaveSnapShot())
 }
 
 func (raftLayer *RaftLayer) rRecoverFromSnapshot(snapshot []byte) error {
@@ -109,7 +122,6 @@ func (raftLayer *RaftLayer) rRecoverFromSnapshot(snapshot []byte) error {
 	}
 	raftLayer.mu.Lock()
 	defer raftLayer.mu.Unlock()
-	// TODO: Deserialize all data, not only db.DB object
-	raftLayer.kvStore = store
+	raftLayer.kvStore.LoadSnapshot(string(snapshot))
 	return nil
 }
