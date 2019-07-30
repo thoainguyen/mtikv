@@ -1,11 +1,11 @@
-package kvpb
+package raftcmd
 
 import (
 	"context"
 	"mtikv/configs"
 	db "mtikv/pkg/core/storage"
-	grpc "mtikv/pkg/protocol/grpc/kvpb"
-	kvservice "mtikv/pkg/service/kvpb"
+	grpc "mtikv/pkg/protocol/grpc/raftcmd"
+	raftservice "mtikv/pkg/service/raftcmd"
 	"strconv"
 
 	log "github.com/sirupsen/logrus"
@@ -17,7 +17,7 @@ func RunServer() error {
 	ctx := context.Background()
 
 	//load config
-	config := &configs.KvServiceConfig{}
+	config := &configs.RaftServiceConfig{}
 
 	if err := configs.LoadConfig(); err != nil {
 		log.Fatalf("LoadConfig: %v\n", err)
@@ -30,7 +30,7 @@ func RunServer() error {
 		return err
 	}
 
-	kvService := kvservice.NewKvService(dba)
+	raftService := raftservice.NewRaftService(dba)
 
-	return grpc.RunServer(ctx, kvService, strconv.Itoa(config.GRPCPort))
+	return grpc.RunServer(ctx, raftService, strconv.Itoa(config.GRPCPort))
 }

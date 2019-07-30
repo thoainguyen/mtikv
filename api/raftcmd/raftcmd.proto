@@ -1,12 +1,12 @@
 syntax = "proto3";
 
 option java_multiple_files = true;
-option java_package = "raftpb";
-option java_outer_classname = "raftpb";
+option java_package = "raftcmd";
+option java_outer_classname = "raftcmd";
 
 import "google/api/annotations.proto";
 
-package raftpb;
+package raftcmd;
 
 message GetRequest {
     string key = 1;

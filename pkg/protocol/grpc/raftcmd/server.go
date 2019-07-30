@@ -2,7 +2,7 @@ package kvpb
 
 import (
 	"context"
-	"mtikv/pkg/api/kvpb"
+	"mtikv/pkg/api/raftcmd"
 	"net"
 	"os"
 	"os/signal"
@@ -12,14 +12,14 @@ import (
 )
 
 //RunServer run gRPC service
-func RunServer(ctx context.Context, kvServer kvpb.KvServiceServer, port string) error {
+func RunServer(ctx context.Context, raftServer raftcmd.RaftServiceServer, port string) error {
 	listen, err := net.Listen("tcp", ":"+port)
 	if err != nil {
 		return err
 	}
 
 	server := grpc.NewServer()
-	kvpb.RegisterKvServiceServer(server, kvServer)
+	raftcmd.RegisterRaftServiceServer(server, raftServer)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
@@ -32,6 +32,6 @@ func RunServer(ctx context.Context, kvServer kvpb.KvServiceServer, port string) 
 		}
 	}()
 
-	log.Info("Start kvstore service port " + port + " ...")
+	log.Info("Start raft service port " + port + " ...")
 	return server.Serve(listen)
 }

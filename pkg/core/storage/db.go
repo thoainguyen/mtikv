@@ -1,4 +1,4 @@
-package db
+package storage
 
 import (
 	log "github.com/sirupsen/logrus"
