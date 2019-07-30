@@ -112,14 +112,10 @@ func (raftLayer *RaftLayer) rRemoveNode(nodeId string) {
 func (raftLayer *RaftLayer) rGetSnapshot() ([]byte, error) {
 	raftLayer.mu.RLock()
 	defer raftLayer.mu.RUnlock()
-	return []byte(raftLayer.kvStore.SaveSnapShot())
+	return []byte(raftLayer.kvStore.SaveSnapShot()), nil
 }
 
 func (raftLayer *RaftLayer) rRecoverFromSnapshot(snapshot []byte) error {
-	var store map[string]string
-	if err := json.Unmarshal(snapshot, &store); err != nil {
-		return err
-	}
 	raftLayer.mu.Lock()
 	defer raftLayer.mu.Unlock()
 	raftLayer.kvStore.LoadSnapshot(string(snapshot))
