@@ -1,7 +1,8 @@
-package service
+package kvpb
 
 import (
 	"context"
+
 	"github.com/thoainguyen/mtikv/pkg/api/kvpb"
 	db "github.com/thoainguyen/mtikv/pkg/core/storage"
 
@@ -13,9 +14,7 @@ type KvService struct {
 }
 
 func NewKvService(db *db.DB) kvpb.KvServiceServer {
-	return &KvService{
-		db: db,
-	}
+	return &KvService{db: db}
 }
 
 func (service KvService) RawPut(ctx context.Context, msg *kvpb.RawPutRequest) (*kvpb.RawPutResponse, error) {

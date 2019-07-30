@@ -2,17 +2,18 @@ package raftcmd
 
 import (
 	"context"
+	"strconv"
+	"strings"
+
 	"github.com/thoainguyen/mtikv/configs"
 	"github.com/thoainguyen/mtikv/pkg/core/raftstore"
 	db "github.com/thoainguyen/mtikv/pkg/core/storage"
 	grpc "github.com/thoainguyen/mtikv/pkg/protocol/grpc/raftcmd"
 	raftservice "github.com/thoainguyen/mtikv/pkg/service/raftcmd"
-	"strconv"
-	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"github.com/etcd-io/etcd/raft/raftpb"
+	"go.etcd.io/etcd/raft/raftpb"
 )
 
 //RunServer run gRPC server
@@ -28,7 +29,7 @@ func RunServer(cluster *string, id *int, kvport *int, join *bool) error {
 		log.Fatalf("Unmarshal: %v\n", err)
 	}
 
-	dba, err := db.CreateDB(config.DBPath+*id, config.DBSnapPath+*id)
+	dba, err := db.CreateDB(config.DBPath+string(*id), config.DBSnapPath+string(*id))
 	if err != nil {
 		return err
 	}
@@ -38,12 +39,12 @@ func RunServer(cluster *string, id *int, kvport *int, join *bool) error {
 	confChangeC := make(chan raftpb.ConfChange)
 	defer close(confChangeC)
 
-	rkv := *raftstore.RaftLayer
-	getSnapshot := func() ([]byte, error) { return rkv.rGetSnapshot() }
+	var rkv *raftstore.RaftLayer
+	getSnapshot := func() ([]byte, error) { return rkv.GetSnapshot() }
 	commitC, errorC, snapshotterReady := raftstore.NewRaftNode(*id, strings.Split(*cluster, ","),
 		*join, getSnapshot, proposeC, confChangeC)
 
-	raftStore := raftstore.NewRaftApiMTikv(dba, proposeC, commitC, confChangeC, errorC)
+	raftStore := raftstore.NewRaftApiMTikv(<-snapshotterReady, dba, proposeC, commitC, confChangeC, errorC)
 	raftService := raftservice.NewRaftService(raftStore)
 	return grpc.RunServer(ctx, raftService, strconv.Itoa(config.GRPCPort))
 }

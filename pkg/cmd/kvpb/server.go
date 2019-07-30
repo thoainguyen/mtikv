@@ -2,11 +2,12 @@ package kvpb
 
 import (
 	"context"
+	"strconv"
+
 	"github.com/thoainguyen/mtikv/configs"
 	db "github.com/thoainguyen/mtikv/pkg/core/storage"
-	grpc "mtikv/pkg/protocol/grpc/kvpb"
-	kvservice "mtikv/pkg/service/kvpb"
-	"strconv"
+	grpc "github.com/thoainguyen/mtikv/pkg/protocol/grpc/kvpb"
+	kvservice "github.com/thoainguyen/mtikv/pkg/service/kvpb"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"

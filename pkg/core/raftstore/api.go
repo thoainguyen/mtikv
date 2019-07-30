@@ -1,15 +1,13 @@
 package raftstore
 
 import (
-	"io/ioutil"
-	"log"
 	"bytes"
-	"github.com/thoainguyen/mtikv/pkg/core/storage"
-	"net/http"
-	"strconv"
-	"encoding/json"
-	"sync"
 	"encoding/gob"
+	"log"
+	"sync"
+
+	db "github.com/thoainguyen/mtikv/pkg/core/storage"
+	"go.etcd.io/etcd/etcdserver/api/snap"
 	"go.etcd.io/etcd/raft/raftpb"
 )
 
@@ -24,26 +22,28 @@ type RaftLayer struct {
 	mu          sync.RWMutex
 	confChangeC chan<- raftpb.ConfChange
 	proposeC    chan<- string
+	snapshotter *snap.Snapshotter
 }
 
-func NewRaftApiMTikv(kv *db.DB, proposeC chan<- string, commitC <- chan *string,
-	confChangeC chan<- raftpb.ConfChange, errorC <-chan error) (*RaftLayer) {
+func NewRaftApiMTikv(snapshotter *snap.Snapshotter, kv *db.DB, proposeC chan<- string, commitC <-chan *string,
+	confChangeC chan<- raftpb.ConfChange, errorC <-chan error) *RaftLayer {
 	s := &RaftLayer{
-		kvStore: kv,
+		kvStore:     kv,
 		confChangeC: confChangeC,
-		proposeC: proposeC,
+		proposeC:    proposeC,
+		snapshotter: snapshotter,
 	}
 	s.rReadCommits(commitC, errorC)
 	go s.rReadCommits(commitC, errorC)
 	return s
 }
 
-func (raftLayer *RaftLayer) rReadCommits(commitC <- chan *string, errorC <- chan error) {
+func (raftLayer *RaftLayer) rReadCommits(commitC <-chan *string, errorC <-chan error) {
 	for data := range commitC {
 		if data == nil {
 			// done replaying log; new data incoming
 			// OR signaled to load snapshot
-			snapshot, err := s.snapshotter.Load()
+			snapshot, err := raftLayer.snapshotter.Load()
 			if err == snap.ErrNoSnapshot {
 				return
 			}
@@ -51,7 +51,7 @@ func (raftLayer *RaftLayer) rReadCommits(commitC <- chan *string, errorC <- chan
 				log.Panic(err)
 			}
 			log.Printf("loading snapshot at term %d and index %d", snapshot.Metadata.Term, snapshot.Metadata.Index)
-			if err := s.rRecoverFromSnapshot(snapshot.Data); err != nil {
+			if err := raftLayer.RecoverFromSnapshot(snapshot.Data); err != nil {
 				log.Panic(err)
 			}
 			continue
@@ -63,7 +63,7 @@ func (raftLayer *RaftLayer) rReadCommits(commitC <- chan *string, errorC <- chan
 			log.Fatalf("raft -> could not decode message (%v)", err)
 		}
 		raftLayer.mu.Lock()
-		err := raftLayer.kvStore.PutData(dataKv.Key, dataKv.Val)
+		err := raftLayer.kvStore.PutData(dataKv.Key, dataKv.Value)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -74,34 +74,35 @@ func (raftLayer *RaftLayer) rReadCommits(commitC <- chan *string, errorC <- chan
 	}
 }
 
-func (raftLayer *RaftLayer) rPutData(key string, value string) error {
-	var buf bytes.Buffer()
-	if err := gob.NewEncoder(&buf).Encode(KeyValuePair{key, value}); err == nil {
-		s.proposeC <- buf.String()
+func (raftLayer *RaftLayer) PutData(key string, value string) error {
+	var buf bytes.Buffer
+	if err := gob.NewEncoder(&buf).Encode(KeyValuePair{key, value}); err != nil {
+		log.Fatal(err)
 	}
-	return err
+	raftLayer.proposeC <- buf.String()
+	return nil
 }
 
-func (raftLayer *RaftLayer) rGetData(key string) (string, error) {
+func (raftLayer *RaftLayer) GetData(key string) (string, error) {
 	raftLayer.mu.RLock()
 	defer raftLayer.mu.RUnlock()
 	return raftLayer.kvStore.GetData(key)
 }
 
-func (raftLayer *RaftLayer) rDeleteData(key string) error {
+func (raftLayer *RaftLayer) DeleteData(key string) error {
 	return nil
 }
 
-func (raftLayer *RaftLayer) rAddNode(nodeId, url string) {
+func (raftLayer *RaftLayer) AddNode(nodeId uint64, url string) {
 	cc := raftpb.ConfChange{
 		Type:    raftpb.ConfChangeAddNode,
 		NodeID:  nodeId,
-		Context: url,
+		Context: []byte(url),
 	}
 	raftLayer.confChangeC <- cc
 }
 
-func (raftLayer *RaftLayer) rRemoveNode(nodeId string) {
+func (raftLayer *RaftLayer) RemoveNode(nodeId uint64) {
 	cc := raftpb.ConfChange{
 		Type:   raftpb.ConfChangeRemoveNode,
 		NodeID: nodeId,
@@ -109,15 +110,15 @@ func (raftLayer *RaftLayer) rRemoveNode(nodeId string) {
 	raftLayer.confChangeC <- cc
 }
 
-func (raftLayer *RaftLayer) rGetSnapshot() ([]byte, error) {
+func (raftLayer *RaftLayer) GetSnapshot() ([]byte, error) {
 	raftLayer.mu.RLock()
 	defer raftLayer.mu.RUnlock()
 	return []byte(raftLayer.kvStore.SaveSnapShot()), nil
 }
 
-func (raftLayer *RaftLayer) rRecoverFromSnapshot(snapshot []byte) error {
+func (raftLayer *RaftLayer) RecoverFromSnapshot(snapshot []byte) error {
 	raftLayer.mu.Lock()
 	defer raftLayer.mu.Unlock()
-	raftLayer.kvStore.LoadSnapshot(string(snapshot))
+	raftLayer.kvStore.LoadSnapShot(string(snapshot))
 	return nil
 }
