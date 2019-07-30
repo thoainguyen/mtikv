@@ -94,3 +94,22 @@ func (raftLayer *RaftLayer) rRemoveNode(nodeId string) {
 	}
 	raftLayer.confChangeC <- cc
 }
+
+func (raftLayer *RaftLayer) rGetSnapshot() ([]byte, error) {
+	raftLayer.mu.RLock()
+	defer raftLayer.mu.RUnlock()
+	// TODO: Serialize all data, not only db.DB object
+	return json.Marshal(raftLayer.kvStore)
+}
+
+func (raftLayer *RaftLayer) rRecoverFromSnapshot(snapshot []byte) error {
+	var store map[string]string
+	if err := json.Unmarshal(snapshot, &store); err != nil {
+		return err
+	}
+	raftLayer.mu.Lock()
+	defer raftLayer.mu.Unlock()
+	// TODO: Deserialize all data, not only db.DB object
+	raftLayer.kvStore = store
+	return nil
+}
