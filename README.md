@@ -2,6 +2,10 @@
 
 Mini [TiKV](https://github.com/tikv/tikv): A Distributed transactional key-value database
 
+## Architecture
+
+![](./images/mtikv-architecture.png)
+
 ## Getting Started
 
 ### Prerequisites

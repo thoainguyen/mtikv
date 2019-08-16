@@ -1,4 +1,4 @@
-package raftstore
+package raft
 
 import (
 	"bytes"
@@ -6,7 +6,7 @@ import (
 	"log"
 	"sync"
 
-	db "github.com/thoainguyen/mtikv/pkg/core/storage"
+	db "github.com/thoainguyen/mtikv/pkg/core/db"
 	"go.etcd.io/etcd/etcdserver/api/snap"
 	"go.etcd.io/etcd/raft/raftpb"
 )

@@ -1,4 +1,4 @@
-package raftstore
+package raft
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/thoainguyen/mtikv/config"
 	"go.etcd.io/etcd/etcdserver/api/rafthttp"
 	"go.etcd.io/etcd/etcdserver/api/snap"
 	stats "go.etcd.io/etcd/etcdserver/api/v2stats"
@@ -78,8 +79,8 @@ func NewRaftNode(id int, peers []string, join bool, getSnapshot func() ([]byte, 
 		id:          id,
 		peers:       peers,
 		join:        join,
-		waldir:      fmt.Sprintf("raftexample-%d", id),
-		snapdir:     fmt.Sprintf("raftexample-%d-snap", id),
+		waldir:      fmt.Sprintf("%s-%d/raftexample", config.DBPath, id),
+		snapdir:     fmt.Sprintf("%s-%d/raftexample-snap", config.DBPath, id),
 		getSnapshot: getSnapshot,
 		snapCount:   defaultSnapshotCount,
 		stopc:       make(chan struct{}),

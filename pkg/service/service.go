@@ -1,10 +1,10 @@
-package raftcmd
+package service
 
 import (
 	"context"
 
-	pb "github.com/thoainguyen/mtikv/pkg/api/raftcmd"
-	raftapi "github.com/thoainguyen/mtikv/pkg/core/raftstore"
+	pb "github.com/thoainguyen/mtikv/pkg/api/raftkv"
+	raftapi "github.com/thoainguyen/mtikv/pkg/core/raft"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -18,7 +18,7 @@ func NewRaftService(raftLayer *raftapi.RaftLayer) pb.RaftServiceServer {
 }
 
 func (service RaftService) Put(ctx context.Context, msg *pb.PutRequest) (*pb.PutResponse, error) {
-	log.Info("Received Put: Key: %#v Value: %#v\n", msg.Key, msg.Value)
+	log.Info("Received Put: Key: %v Value: %v\n", msg.Key, msg.Value)
 
 	err := service.raftLayer.PutData(msg.Key, msg.Value)
 	if err != nil {
@@ -29,7 +29,7 @@ func (service RaftService) Put(ctx context.Context, msg *pb.PutRequest) (*pb.Put
 }
 
 func (service RaftService) Get(ctx context.Context, msg *pb.GetRequest) (*pb.GetResponse, error) {
-	log.Info("Received Get: Key: %#v\n", msg.Key)
+	log.Info("Received Get: Key: %v\n", msg.Key)
 	data, err := service.raftLayer.GetData(msg.Key)
 	if err != nil {
 		log.Fatalf("Can't Get Value: %v", err)
@@ -39,7 +39,7 @@ func (service RaftService) Get(ctx context.Context, msg *pb.GetRequest) (*pb.Get
 }
 
 func (service RaftService) Delete(ctx context.Context, msg *pb.DeleteRequest) (*pb.DeleteResponse, error) {
-	log.Info("Received Delete Key: %#v\n", msg.Key)
+	log.Info("Received Delete Key: %v\n", msg.Key)
 	err := service.raftLayer.DeleteData(msg.Key)
 	if err != nil {
 		log.Fatalf("Can't Delete Key: %v", err)

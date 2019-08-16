@@ -1,4 +1,4 @@
-package storage
+package db
 
 import (
 	"fmt"
@@ -54,20 +54,20 @@ func (db *DB) DeleteData(key string) error {
 func (db *DB) SaveSnapShot() string {
 	envOptions := gorocksdb.NewDefaultEnvOptions()
 	options := gorocksdb.NewDefaultOptions()
-	ssfWriteer := gorocksdb.NewSSTFileWriter(envOptions, options)
-	err := ssfWriteer.Open(db.snapPath)
+	sstWriter := gorocksdb.NewSSTFileWriter(envOptions, options)
+	err := sstWriter.Open(db.snapPath)
 	if err != nil {
 		log.Fatalf("(1) %v", err)
 	}
 	it := db.database.NewIterator(db.readOpts)
 	defer it.Close()
 	for it.SeekToFirst(); it.Valid(); it.Next() {
-		ssfWriteer.Add(it.Key().Data(), it.Value().Data())
+		sstWriter.Add(it.Key().Data(), it.Value().Data())
 	}
 	if err := it.Err(); err != nil {
 		log.Fatalf("(2) %v", err)
 	}
-	err = ssfWriteer.Finish()
+	err = sstWriter.Finish()
 	if err != nil {
 		log.Fatalf("(3) %v", err)
 	}

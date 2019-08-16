@@ -4,7 +4,7 @@ import (
 	"flag"
 	"os"
 
-	cmd "github.com/thoainguyen/mtikv/pkg/cmd/raftcmd"
+	cmd "github.com/thoainguyen/mtikv/pkg/cmd"
 
 	log "github.com/sirupsen/logrus"
 )

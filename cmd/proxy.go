@@ -15,9 +15,6 @@ import (
 )
 
 var (
-	// command-line options:
-	// gRPC server endpoint
-	// kvServerEndpoint   = flag.String("kvpb", "localhost:10002", "gRPC server endpoint")
 	raftServerEndpoint = flag.String("raft", "localhost:10002", "gRPC server endpoint")
 )
 

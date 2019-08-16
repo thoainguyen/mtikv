@@ -1,18 +1,16 @@
-package raftcmd
+package cmd
 
 import (
 	"context"
-	"strconv"
+	"fmt"
 	"strings"
 
-	"github.com/thoainguyen/mtikv/configs"
-	"github.com/thoainguyen/mtikv/pkg/core/raftstore"
-	db "github.com/thoainguyen/mtikv/pkg/core/storage"
-	grpc "github.com/thoainguyen/mtikv/pkg/protocol/grpc/raftcmd"
-	raftservice "github.com/thoainguyen/mtikv/pkg/service/raftcmd"
+	"github.com/thoainguyen/mtikv/config"
+	db "github.com/thoainguyen/mtikv/pkg/core/db"
+	raftstore "github.com/thoainguyen/mtikv/pkg/core/raft"
+	grpc "github.com/thoainguyen/mtikv/pkg/protocol"
+	raftservice "github.com/thoainguyen/mtikv/pkg/service"
 
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
 	"go.etcd.io/etcd/raft/raftpb"
 )
 
@@ -20,16 +18,9 @@ import (
 func RunServer(cluster *string, id *int, kvport *int, join *bool) error {
 	ctx := context.Background()
 
-	//load config
-	config := &configs.RaftServiceConfig{}
-	if err := configs.LoadConfig(); err != nil {
-		log.Fatalf("LoadConfig: %v\n", err)
-	}
-	if err := viper.Unmarshal(config); err != nil {
-		log.Fatalf("Unmarshal: %v\n", err)
-	}
-
-	dba, err := db.CreateDB(config.DBPath, config.DBSnapPath)
+	dba, err := db.CreateDB(
+		fmt.Sprintf("%s-%d", config.DBPath, *id),
+		fmt.Sprintf("%s-%d", config.SnapPath, *id))
 	if err != nil {
 		return err
 	}
@@ -46,5 +37,5 @@ func RunServer(cluster *string, id *int, kvport *int, join *bool) error {
 
 	raftStore := raftstore.NewRaftApiMTikv(<-snapshotterReady, dba, proposeC, commitC, confChangeC, errorC)
 	raftService := raftservice.NewRaftService(raftStore)
-	return grpc.RunServer(ctx, raftService, strconv.Itoa(config.GRPCPort))
+	return grpc.RunServer(ctx, raftService, config.GRPCPort)
 }
