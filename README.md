@@ -4,7 +4,20 @@ Mini [TiKV](https://github.com/tikv/tikv): A Distributed transactional key-value
 
 ## Architecture
 
+### Overview
+
+
 ![](./docs/images/mtikv.png)
+
+### Raft group
+
+![](./docs/images/mtikv-raft-group.png)
+
+
+### Raw Service
+
+
+![](./docs/images/mtikv-rawkv.png)
 
 ## Getting Started
 
