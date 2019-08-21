@@ -4,7 +4,7 @@ Mini [TiKV](https://github.com/tikv/tikv): A Distributed transactional key-value
 
 ## Architecture
 
-![](./images/mtikv-architecture.png)
+![](./docs/images/mtikv.png)
 
 ## Getting Started
 
