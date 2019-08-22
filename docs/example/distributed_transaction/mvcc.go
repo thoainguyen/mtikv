@@ -4,7 +4,8 @@ package main
 import (
 	"fmt"
 	"log"
-
+	"errors"
+	"encoding/binary"
 	"github.com/tecbot/gorocksdb"
 )
 
@@ -17,6 +18,12 @@ type MvccStorage struct {
 	cfNames        []string
 	cfOpts         []*gorocksdb.Options
 }
+
+var (
+	ErrorWriteConflict = errors.New("ErrorWriteConflict")
+	ErrorTxnConflict = errors.New("ErrorTxnConflict")
+	ErrorKeyIsLocked = errors.New("ErrorKeyIsLocked")
+)
 
 func CreateMvccStorage(pathDB string) *MvccStorage {
 	var (
@@ -68,6 +75,44 @@ func (store *MvccStorage) Destroy(){
 	store.db.Close()
 }
 
+type Mutation struct {
+	Key, Value string
+	Op   byte
+}
+
+func (store *MvccStorage) Prewrite(mutations []Mutation, start_ts uint64) (keyIsLockedErrors []error, err error) {
+	
+	var result  *gorocksdb.Slice
+
+	for idx, mutation := range mutations {
+		result, _ = store.db.GetCF(store.rdOpts, store.handles[3], []byte(mutation.Key))
+		last_commit_ts := binary.BigEndian.Uint64(result.Data())
+		if last_commit_ts >= start_ts {
+			err = ErrorWriteConflict
+			return
+		}
+		
+		result, _ = store.db.GetCF(store.rdOpts, store.handles[1], []byte(mutation.Key))
+		lock_ts := binary.BigEndian.Uint64(result.Data())
+		if lock_ts != start_ts {
+			keyIsLockedErrors = append(keyIsLockedErrors, ErrorKeyIsLocked) 
+		}
+		// TODO: write in buffer, and commit later
+		batch := gorocksdb.NewWriteBatch()
+		batch.PutCF(store.handles[0], []byte(mutation.Key + "_" + string(start_ts)), []byte(mutation.Value))
+		batch.PutCF(store.handles[1], []byte(mutation.Key), []byte(string(start_ts)))
+		_ = store.db.Write(store.wrOpts, batch)
+	}
+
+	if len(keyIsLockedErrors) != 0 {
+		err = ErrorKeyIsLocked
+		return
+	}
+
+	
+}
+
+
 func checkError(err error) {
 	if err != nil {
 		log.Fatal(err)
@@ -84,7 +129,6 @@ func main() {
 
 	// open DB
 	store := CreateMvccStorage("volumes")
-
 
 	// put and get from non-default column family
 	err = store.db.PutCF(store.wrOpts, store.handles[0], []byte("key"), []byte("value"))
