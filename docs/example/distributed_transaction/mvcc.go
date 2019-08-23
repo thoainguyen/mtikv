@@ -33,10 +33,10 @@ func CreateMvccStorage(pathDB string) *MvccStorage {
 		wrOpts         = gorocksdb.NewDefaultWriteOptions()
 		kDefaultPathDB = pathDB
 		cfNames        = []string{"default", "cf_lock", "cf_write", "cf_info"}
-		// + Default: ${key}_${start_ts}	=> 	${value}
-		// + Lock   : ${key}				=>	${start_ts,primary_key,..etc}
-		// + Write  : ${key}_${commit_ts}	=>	${start_ts}
-		// + Info   : ${key}				=> 	$(commit_ts), latest commit timestamp
+		// + Default: ${key}_${start_ts}	=>	${value}
+		// + Lock	: ${key}				=>	${start_ts,primary_key,..etc}
+		// + Write	: ${key}_${commit_ts}	=>	${start_ts}
+		// + Info	: ${key}				=>	$(commit_ts), latest commit timestamp
 		cfOpts = []*gorocksdb.Options{
 			gorocksdb.NewDefaultOptions(),
 			gorocksdb.NewDefaultOptions(),
