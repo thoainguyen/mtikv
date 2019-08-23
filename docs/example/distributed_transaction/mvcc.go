@@ -119,7 +119,6 @@ func (store *MvccStorage) Prewrite(mutations []Mutation, start_ts uint64, primar
 		for key, value := range cf_data {
 			store.db.PutCF(store.wrOpts, store.handles[0], []byte(key), []byte(value))
 		}
-
 		for key, value := range cf_lock {
 			store.db.PutCF(store.wrOpts, store.handles[1], []byte(key), []byte(value))
 		}
@@ -132,6 +131,7 @@ func (store *MvccStorage) Commit(start_ts, commit_ts uint64, mutations []Mutatio
 		result   *gorocksdb.Slice
 		cf_lock  = make(map[string]string)
 		cf_write = make(map[string]string)
+		cf_raft  = make(map[string]string)
 	)
 	for _, mutation := range mutations {
 		result, _ = store.db.GetCF(store.rdOpts, store.handles[1], []byte(mutation.Key))
@@ -140,7 +140,7 @@ func (store *MvccStorage) Commit(start_ts, commit_ts uint64, mutations []Mutatio
 			lock_ts, _ := strconv.ParseUint(value[2], 10, 64)
 			if lock_ts == start_ts {
 				cf_write[mutation.Key+"_"+string(commit_ts)] = string(mutation.Op) + "_" + string(start_ts)
-				cf_lock[mutation.Key] = ""
+				cf_lock[mutation.Key] = string(commit_ts)
 			}
 		} else { // lock not exist or txn dismatch
 			result, _ = store.db.GetCF(store.rdOpts, store.handles[2], []byte(mutation.Key+"_"+string(commit_ts)))
@@ -159,8 +159,9 @@ func (store *MvccStorage) Commit(start_ts, commit_ts uint64, mutations []Mutatio
 	for key, value := range cf_write {
 		store.db.PutCF(store.wrOpts, store.handles[2], []byte(key), []byte(value))
 	}
-	for key, _ := range cf_lock {
+	for key, value := range cf_lock {
 		store.db.DeleteCF(store.wrOpts, store.handles[1], []byte(key))
+		store.db.PutCF(store.wrOpts, store.handles[3], []byte(key), []byte(value))
 	}
 	return nil
 }
