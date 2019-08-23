@@ -6,7 +6,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
-
+	"fmt"
 	"github.com/tecbot/gorocksdb"
 )
 
@@ -82,7 +82,7 @@ func (store *MvccStorage) Destroy() {
 
 type Mutation struct {
 	Key, Value string
-	Op         byte
+	Op         string
 }
 
 // prewrite(start_ts, data_list)
@@ -98,7 +98,7 @@ func (store *MvccStorage) Prewrite(mutations []Mutation, start_ts uint64, primar
 		result, _ = store.db.GetCF(store.rdOpts, store.handles[3], []byte(mutation.Key))
 		if len(result.Data()) != 0 {
 			last_commit_ts := binary.BigEndian.Uint64(result.Data())
-			// if commit_ts >= start_ts => return Error WriteConflic
+			// if commit_ts >= start_ts => return Error WriteConflict
 			if last_commit_ts >= start_ts {
 				err = ErrorWriteConflict
 				return
@@ -114,7 +114,7 @@ func (store *MvccStorage) Prewrite(mutations []Mutation, start_ts uint64, primar
 				keyIsLockedErrors = append(keyIsLockedErrors, ErrorKeyIsLocked)
 			} else { // write in memory:lock(key, start_ts, primary) & default(value)
 				cf_data[mutation.Key+"_"+string(start_ts)] = mutation.Value
-				cf_lock[mutation.Key] = string(mutation.Op) + "_" + string(primary_key) + "_" + string(start_ts)
+				cf_lock[mutation.Key] = mutation.Op + "_" + string(primary_key) + "_" + string(start_ts)
 			}
 		}
 	}
@@ -151,7 +151,7 @@ func (store *MvccStorage) Commit(start_ts, commit_ts uint64, mutations []Mutatio
 			if lock_ts == start_ts {
 				// write memory:set write(commit_ts, lock_type, start_ts)
 				cf_write[mutation.Key+"_"+string(commit_ts)] = string(mutation.Op) + "_" + string(start_ts)
-				// remove current lock(key)
+				// write memory: current lock(key) will be removed and latest commit_ts
 				cf_lock[mutation.Key] = string(commit_ts)
 			}
 		} else { // lock not exist or txn dismatch
@@ -171,7 +171,7 @@ func (store *MvccStorage) Commit(start_ts, commit_ts uint64, mutations []Mutatio
 			}
 		}
 	}
-	// Commit Change
+	// commit change
 	for key, value := range cf_write {
 		store.db.PutCF(store.wrOpts, store.handles[2], []byte(key), []byte(value))
 	}
@@ -193,6 +193,23 @@ func main() {
 
 	// open MvccStorage
 	store := CreateMvccStorage("volumes")
+	mutations := []Mutation{
+		Mutation{"thoainh","Nguyen Huynh Thoai", "P"},
+		Mutation{"nhthoai","Thoai Nguyen Huynh", "P"},
+	}
+	_, errPrewrite := store.Prewrite(mutations, 0, "thoainh")
+	if errPrewrite != nil {
+		fmt.Println(errPrewrite)
+	}
+	errCommit := store.Commit(0, 1, mutations)
+	if errCommit != nil {
+		fmt.Println(errCommit)
+	}
+
+
+	result, err := store.db.GetCF(store.rdOpts, store.handles[0], []byte("thoainh_1"))
+	checkError(err)
+	fmt.Println(string(result.Data()))
 
 	// destroy MvccStorage
 	store.Destroy()
