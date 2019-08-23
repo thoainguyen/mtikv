@@ -1,11 +1,11 @@
 package main
 
-
 import (
+	"encoding/binary"
+	"errors"
 	"fmt"
 	"log"
-	"errors"
-	"encoding/binary"
+
 	"github.com/tecbot/gorocksdb"
 )
 
@@ -21,18 +21,18 @@ type MvccStorage struct {
 
 var (
 	ErrorWriteConflict = errors.New("ErrorWriteConflict")
-	ErrorTxnConflict = errors.New("ErrorTxnConflict")
-	ErrorKeyIsLocked = errors.New("ErrorKeyIsLocked")
+	ErrorTxnConflict   = errors.New("ErrorTxnConflict")
+	ErrorKeyIsLocked   = errors.New("ErrorKeyIsLocked")
 )
 
 func CreateMvccStorage(pathDB string) *MvccStorage {
 	var (
-		db *gorocksdb.DB
-		rdOpts = gorocksdb.NewDefaultReadOptions()
-		wrOpts = gorocksdb.NewDefaultWriteOptions()
+		db             *gorocksdb.DB
+		rdOpts         = gorocksdb.NewDefaultReadOptions()
+		wrOpts         = gorocksdb.NewDefaultWriteOptions()
 		kDefaultPathDB = pathDB
-		cfNames = []string{"default", "cf_lock", "cf_write", "cf_raft"}
-		cfOpts = []*gorocksdb.Options{
+		cfNames        = []string{"default", "cf_lock", "cf_write", "cf_raft"}
+		cfOpts         = []*gorocksdb.Options{
 			gorocksdb.NewDefaultOptions(),
 			gorocksdb.NewDefaultOptions(),
 			gorocksdb.NewDefaultOptions(),
@@ -40,14 +40,14 @@ func CreateMvccStorage(pathDB string) *MvccStorage {
 		}
 		options = gorocksdb.NewDefaultOptions()
 		handles []*gorocksdb.ColumnFamilyHandle
-		err error
+		err     error
 	)
 
 	options.SetCreateIfMissing(true)
 
 	db, err = gorocksdb.OpenDb(options, kDefaultPathDB)
 	checkError(err)
-	
+
 	for i := 1; i < len(cfNames); i++ {
 		cf, err := db.CreateColumnFamily(options, cfNames[i])
 		checkError(err)
@@ -61,12 +61,12 @@ func CreateMvccStorage(pathDB string) *MvccStorage {
 	return &MvccStorage{db, rdOpts, wrOpts, handles, kDefaultPathDB, cfNames, cfOpts}
 }
 
-func (store *MvccStorage) Destroy(){
+func (store *MvccStorage) Destroy() {
 	var err error
 	// drop column family
-	for i := 1; i < len(store.handles);i++ {
+	for i := 1; i < len(store.handles); i++ {
 		err = store.db.DropColumnFamily(store.handles[i])
-		checkError(err)	
+		checkError(err)
 	}
 	// close db
 	for i := 0; i < len(store.handles); i++ {
@@ -77,41 +77,49 @@ func (store *MvccStorage) Destroy(){
 
 type Mutation struct {
 	Key, Value string
-	Op   byte
+	Op         byte
 }
 
 func (store *MvccStorage) Prewrite(mutations []Mutation, start_ts uint64) (keyIsLockedErrors []error, err error) {
-	
-	var result  *gorocksdb.Slice
 
-	for idx, mutation := range mutations {
+	var (
+		result  *gorocksdb.Slice
+		cf_data = make(map[string]string)
+		cf_lock = make(map[string]string)
+	)
+
+	for _, mutation := range mutations {
 		result, _ = store.db.GetCF(store.rdOpts, store.handles[3], []byte(mutation.Key))
 		last_commit_ts := binary.BigEndian.Uint64(result.Data())
 		if last_commit_ts >= start_ts {
 			err = ErrorWriteConflict
 			return
 		}
-		
+
 		result, _ = store.db.GetCF(store.rdOpts, store.handles[1], []byte(mutation.Key))
 		lock_ts := binary.BigEndian.Uint64(result.Data())
 		if lock_ts != start_ts {
-			keyIsLockedErrors = append(keyIsLockedErrors, ErrorKeyIsLocked) 
+			keyIsLockedErrors = append(keyIsLockedErrors, ErrorKeyIsLocked)
 		}
-		// TODO: write in buffer, and commit later
-		batch := gorocksdb.NewWriteBatch()
-		batch.PutCF(store.handles[0], []byte(mutation.Key + "_" + string(start_ts)), []byte(mutation.Value))
-		batch.PutCF(store.handles[1], []byte(mutation.Key), []byte(string(start_ts)))
-		_ = store.db.Write(store.wrOpts, batch)
+
+		cf_data[mutation.Key+"_"+string(start_ts)] = mutation.Value
+		cf_lock[mutation.Key] = string(start_ts)
 	}
 
 	if len(keyIsLockedErrors) != 0 {
 		err = ErrorKeyIsLocked
 		return
+	} else {
+		for key, value := range cf_data {
+			store.db.PutCF(store.wrOpts, store.handles[0], []byte(key), []byte(value))
+		}
+
+		for key, value := range cf_lock {
+			store.db.PutCF(store.wrOpts, store.handles[1], []byte(key), []byte(value))
+		}
 	}
-
-	
+	return
 }
-
 
 func checkError(err error) {
 	if err != nil {
@@ -119,12 +127,11 @@ func checkError(err error) {
 	}
 }
 
-
 func main() {
 
 	var (
-		err            error
-		result         *gorocksdb.Slice
+		err    error
+		result *gorocksdb.Slice
 	)
 
 	// open DB
@@ -150,5 +157,5 @@ func main() {
 	checkError(err)
 
 	store.Destroy()
-	
+
 }
