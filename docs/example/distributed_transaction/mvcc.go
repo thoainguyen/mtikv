@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
+	"strings"
 
 	"github.com/tecbot/gorocksdb"
 )
@@ -80,7 +82,7 @@ type Mutation struct {
 	Op         byte
 }
 
-func (store *MvccStorage) Prewrite(mutations []Mutation, start_ts uint64) (keyIsLockedErrors []error, err error) {
+func (store *MvccStorage) Prewrite(mutations []Mutation, start_ts uint64, primary_key string) (keyIsLockedErrors []error, err error) {
 
 	var (
 		result  *gorocksdb.Slice
@@ -90,20 +92,24 @@ func (store *MvccStorage) Prewrite(mutations []Mutation, start_ts uint64) (keyIs
 
 	for _, mutation := range mutations {
 		result, _ = store.db.GetCF(store.rdOpts, store.handles[3], []byte(mutation.Key))
-		last_commit_ts := binary.BigEndian.Uint64(result.Data())
-		if last_commit_ts >= start_ts {
-			err = ErrorWriteConflict
-			return
+		if len(result.Data()) != 0 {
+			last_commit_ts := binary.BigEndian.Uint64(result.Data())
+			if last_commit_ts >= start_ts {
+				err = ErrorWriteConflict
+				return
+			}
 		}
 
 		result, _ = store.db.GetCF(store.rdOpts, store.handles[1], []byte(mutation.Key))
-		lock_ts := binary.BigEndian.Uint64(result.Data())
-		if lock_ts != start_ts {
-			keyIsLockedErrors = append(keyIsLockedErrors, ErrorKeyIsLocked)
+		if len(result.Data()) != 0 {
+			lock_ts := binary.BigEndian.Uint64(result.Data())
+			if lock_ts != start_ts {
+				keyIsLockedErrors = append(keyIsLockedErrors, ErrorKeyIsLocked)
+			} else {
+				cf_data[mutation.Key+"_"+string(start_ts)] = mutation.Value
+				cf_lock[mutation.Key] = string(mutation.Op) + "_" + string(primary_key) + "_" + string(start_ts)
+			}
 		}
-
-		cf_data[mutation.Key+"_"+string(start_ts)] = mutation.Value
-		cf_lock[mutation.Key] = string(start_ts)
 	}
 
 	if len(keyIsLockedErrors) != 0 {
@@ -119,6 +125,44 @@ func (store *MvccStorage) Prewrite(mutations []Mutation, start_ts uint64) (keyIs
 		}
 	}
 	return
+}
+
+func (store *MvccStorage) Commit(start_ts, commit_ts uint64, mutations []Mutation) error {
+	var (
+		result   *gorocksdb.Slice
+		cf_lock  = make(map[string]string)
+		cf_write = make(map[string]string)
+	)
+	for _, mutation := range mutations {
+		result, _ = store.db.GetCF(store.rdOpts, store.handles[1], []byte(mutation.Key))
+		if len(result.Data()) != 0 {
+			value := strings.Split(string(result.Data()), "_")
+			lock_ts, _ := strconv.ParseUint(value[2], 10, 64)
+			if lock_ts == start_ts {
+				cf_write[mutation.Key+"_"+string(commit_ts)] = string(mutation.Op) + "_" + string(start_ts)
+				cf_lock[mutation.Key] = ""
+			}
+		} else { // lock not exist or txn dismatch
+			result, _ = store.db.GetCF(store.rdOpts, store.handles[2], []byte(mutation.Key+"_"+string(commit_ts)))
+			if len(result.Data()) != 0 {
+				write_type := strings.Split(string(result.Data()), "_")[0]
+				switch write_type {
+				case "P", "D", "L":
+					break
+				default:
+					return ErrorTxnConflict
+
+				}
+			}
+		}
+	}
+	for key, value := range cf_write {
+		store.db.PutCF(store.wrOpts, store.handles[2], []byte(key), []byte(value))
+	}
+	for key, _ := range cf_lock {
+		store.db.DeleteCF(store.wrOpts, store.handles[1], []byte(key))
+	}
+	return nil
 }
 
 func checkError(err error) {
