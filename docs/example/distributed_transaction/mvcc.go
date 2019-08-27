@@ -34,10 +34,12 @@ func CreateMvccStorage(pathDB string) *MvccStorage {
 		wrOpts         = gorocksdb.NewDefaultWriteOptions()
 		kDefaultPathDB = pathDB
 		cfNames        = []string{"default", "cf_lock", "cf_write", "cf_info"}
+
 		// + Default: ${key}_${start_ts} => ${value}
 		// + Lock: ${key} => ${start_ts,primary_key,..etc}
 		// + Write: ${key}_${commit_ts} => ${start_ts}
 		// + Info: ${key} => $(commit_ts), latest commit timestamp
+
 		cfOpts = []*gorocksdb.Options{
 			gorocksdb.NewDefaultOptions(),
 			gorocksdb.NewDefaultOptions(),
@@ -81,17 +83,20 @@ func (store *MvccStorage) Destroy() {
 	store.db.Close()
 }
 
-type Mutation struct {
+type KeyValuePair struct {
 	Key, Value string
-	Op         string
+}
+type Mutation struct {
+	KeyValuePair
+	Op string
 }
 
 // prewrite(start_ts, data_list)
 func (store *MvccStorage) Prewrite(mutations []Mutation, start_ts uint64, primary_key string) (keyIsLockedErrors []error, err error) {
 	var (
 		result  *gorocksdb.Slice
-		cf_data = make(map[string]string)
-		cf_lock = make(map[string]string)
+		cf_data []KeyValuePair
+		cf_lock []KeyValuePair
 	)
 	// for keys in data_list, prewrite each key with start_ts in memory
 	for _, mutation := range mutations {
@@ -116,8 +121,8 @@ func (store *MvccStorage) Prewrite(mutations []Mutation, start_ts uint64, primar
 			}
 		} else {
 			// write in memory:lock(key, start_ts, primary) & default(value)
-			cf_data[mutation.Key+"_"+strconv.FormatUint(start_ts, 10)] = mutation.Value
-			cf_lock[mutation.Key] = mutation.Op + "_" + string(primary_key) + "_" + strconv.FormatUint(start_ts, 10)
+			cf_data = append(cf_data, KeyValuePair{mutation.Key + "_" + strconv.FormatUint(start_ts, 10), mutation.Value})
+			cf_lock = append(cf_lock, KeyValuePair{mutation.Key, mutation.Op + "_" + string(primary_key) + "_" + strconv.FormatUint(start_ts, 10)})
 		}
 	}
 	// if KeyIsLocked exist => return slice KeyIsLocked Error
@@ -125,11 +130,11 @@ func (store *MvccStorage) Prewrite(mutations []Mutation, start_ts uint64, primar
 		err = ErrorKeyIsLocked
 		return
 	} else { // commit change, write into rocksdb column family
-		for key, value := range cf_data { // loop: write in cf_data
-			store.db.PutCF(store.wrOpts, store.handles[0], []byte(key), []byte(value))
+		for _, pair := range cf_data { // loop: write in cf_data
+			store.db.PutCF(store.wrOpts, store.handles[0], []byte(pair.Key), []byte(pair.Value))
 		}
-		for key, value := range cf_lock { // loop: write in cf_lock
-			store.db.PutCF(store.wrOpts, store.handles[1], []byte(key), []byte(value))
+		for _, pair := range cf_lock { // loop: write in cf_lock
+			store.db.PutCF(store.wrOpts, store.handles[1], []byte(pair.Key), []byte(pair.Value))
 		}
 	}
 	return
@@ -139,8 +144,8 @@ func (store *MvccStorage) Prewrite(mutations []Mutation, start_ts uint64, primar
 func (store *MvccStorage) Commit(start_ts, commit_ts uint64, mutations []Mutation) error {
 	var (
 		result   *gorocksdb.Slice
-		cf_lock  = make(map[string]string)
-		cf_write = make(map[string]string)
+		cf_lock  []KeyValuePair
+		cf_write []KeyValuePair
 	)
 	// for each key in keys, do commit
 	for _, mutation := range mutations {
@@ -152,9 +157,9 @@ func (store *MvccStorage) Commit(start_ts, commit_ts uint64, mutations []Mutatio
 			// if lock_ts == start_ts
 			if lock_ts == start_ts {
 				// write memory:set write(commit_ts, lock_type, start_ts)
-				cf_write[mutation.Key+"_"+strconv.FormatUint(commit_ts, 10)] = string(mutation.Op) + "_" + strconv.FormatUint(start_ts, 10)
+				cf_write = append(cf_write, KeyValuePair{mutation.Key + "_" + strconv.FormatUint(commit_ts, 10), string(mutation.Op) + "_" + strconv.FormatUint(start_ts, 10)})
 				// write memory: current lock(key) will be removed and latest commit_ts
-				cf_lock[mutation.Key] = strconv.FormatUint(commit_ts, 10)
+				cf_lock = append(cf_lock, KeyValuePair{mutation.Key, strconv.FormatUint(commit_ts, 10)})
 			}
 		} else { // lock not exist or txn dismatch
 			// get(key, start_ts) from write
@@ -174,14 +179,13 @@ func (store *MvccStorage) Commit(start_ts, commit_ts uint64, mutations []Mutatio
 		}
 	}
 	// commit change
-	for key, value := range cf_write {
-		store.db.PutCF(store.wrOpts, store.handles[2], []byte(key), []byte(value))
+	for _, pair := range cf_write {
+		store.db.PutCF(store.wrOpts, store.handles[2], []byte(pair.Key), []byte(pair.Value))
 	}
-	for key, value := range cf_lock {
-		store.db.DeleteCF(store.wrOpts, store.handles[1], []byte(key))
+	for _, pair := range cf_lock {
+		store.db.DeleteCF(store.wrOpts, store.handles[1], []byte(pair.Key))
 		// write key's latest commit
-		store.db.PutCF(store.wrOpts, store.handles[3], []byte(key), []byte(value))
-		fmt.Println(key, value)
+		store.db.PutCF(store.wrOpts, store.handles[3], []byte(pair.Key), []byte(pair.Value))
 	}
 	return nil
 }
@@ -197,8 +201,9 @@ func main() {
 	// open MvccStorage
 	store := CreateMvccStorage("volumes")
 	mutations := []Mutation{
-		Mutation{"thoainh", "Nguyen Huynh Thoai", "P"},
-		Mutation{"nhthoai", "Thoai Nguyen Huynh", "P"},
+		Mutation{KeyValuePair{"thoainh", "Nguyen Huynh Thoai"}, "P"},
+		Mutation{KeyValuePair{"nhthoai", "Thoai Nguyen Huynh"}, "P"},
+		Mutation{KeyValuePair{"thoainh", "Thoai Huynh"}, "P"},
 	}
 	_, errPrewrite := store.Prewrite(mutations, 0, "thoainh")
 	if errPrewrite != nil {
