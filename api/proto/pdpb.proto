@@ -1,0 +1,24 @@
+syntax = "proto3";
+package pd;
+
+option java_multiple_files = true;
+option java_package = "mtikv";
+
+import "google/api/annotations.proto";
+
+
+
+message TsoRequest {}
+
+message TsoReponse {
+    uint64 timestamp = 1;
+}
+
+
+service PDService{
+    rpc GetTimestamp (TsoRequest) returns (TsoReponse) {
+        option (google.api.http) = {
+            get: "/api/pd/timestamp"
+        };
+    }
+}

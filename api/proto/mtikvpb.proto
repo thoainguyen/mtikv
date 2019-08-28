@@ -1,0 +1,136 @@
+syntax = "proto3";
+package mtikv;
+
+option java_multiple_files = true;
+option java_package = "mtikv";
+
+import "google/api/annotations.proto";
+
+
+enum Op {
+    Put = 0;
+    Del = 1;
+}
+
+enum Error {
+    RegionNotFound = 0;
+    KeyNotInRegion = 1;
+}
+
+enum KeyError {
+    WriteConflict = 0;
+    KeyIsLocked = 1;
+}
+
+
+message KvPair {
+    bytes key = 1;
+    bytes value = 2;
+}
+
+
+message Mutation {
+    Op op = 1;
+    bytes key = 2;
+    bytes value = 3;
+}
+
+message PrewriteRequest {
+    repeated Mutation mutations = 1;
+    bytes primary_lock = 2;
+    uint64 start_version = 3;
+}
+
+message PrewriteReponse {
+    Error region_error = 1;
+    repeated KeyError errors = 2;
+}
+
+message CommitRequest {
+    repeated bytes keys = 1;
+    uint64 commit_version = 2;
+}
+
+message CommitReponse {
+    Error region_error = 1;
+    repeated KeyError errors = 2;
+}
+
+message GetRequest {
+    bytes key = 1; 
+    uint64 version = 2;
+}
+
+message GetReponse {
+    Error region_error = 1;
+    KeyError error = 2;
+    bytes value = 3;
+    bool not_found = 4;
+}
+
+message ResolveLockRequest {
+    uint64 start_version = 1;
+    uint64 commit_version = 2;
+    repeated bytes keys = 3;
+}
+
+message ResolveLockResponse {
+    Error region_error = 1;
+    KeyError error = 2;
+}
+
+message GCRequest {
+    uint64 safe_point = 1;
+}
+
+message GCResponse {
+    Error region_error = 1;
+    KeyError error = 2;
+}
+
+message RawGetRequest {
+    bytes key = 1;
+    string cf = 2;
+}
+
+message RawGetResponse {
+    bytes   value = 1;
+    bool    not_found = 2;
+    Error  region_error = 3;
+    KeyError  error = 4;
+}
+
+message RawPutRequest {
+    bytes key = 1;
+    bytes value = 2;
+    string cf = 3;
+}
+
+message RawPutResponse {
+    Error region_error = 1;
+    KeyError error = 2;
+}
+
+message RawDeleteRequest {
+    bytes key = 1;
+    string cf = 2;
+}
+
+message RawDeleteResponse {
+    Error region_error  = 1;
+    KeyError error = 2;
+}
+
+
+service MTiKvService{
+    
+    rpc  KvPrewrite(PrewriteRequest) returns (PrewriteReponse){}
+    rpc  KvCommit(CommitRequest) returns (CommitReponse){}
+    rpc  KvGet(GetRequest) returns (GetReponse){}
+    rpc  KvResolveLock(ResolveLockRequest) returns (ResolveLockResponse){}
+    rpc  KvGC (GCRequest) returns (GetReponse){}
+
+    rpc  RawGet(RawGetRequest) returns (RawGetResponse){}
+    rpc  RawPut(RawPutRequest) returns (RawPutResponse){}
+    rpc  RawDelete(RawDeleteRequest) returns (RawDeleteResponse){}
+}
