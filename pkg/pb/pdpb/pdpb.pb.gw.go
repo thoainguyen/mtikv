@@ -2,11 +2,11 @@
 // source: pdpb.proto
 
 /*
-Package pd is a reverse proxy.
+Package pdpb is a reverse proxy.
 
 It translates gRPC into RESTful JSON APIs.
 */
-package pd
+package pdpb
 
 import (
 	"context"

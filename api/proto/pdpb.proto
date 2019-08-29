@@ -1,5 +1,5 @@
 syntax = "proto3";
-package pd;
+package pdpb;
 
 option java_multiple_files = true;
 option java_package = "mtikv";

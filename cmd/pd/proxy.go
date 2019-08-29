@@ -9,7 +9,7 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
 
-	gw "github.com/thoainguyen/mtikv/pkg/api/pd" // Update
+	gw "github.com/thoainguyen/mtikv/pkg/pb/pdpb" // Update
 )
 
 var (

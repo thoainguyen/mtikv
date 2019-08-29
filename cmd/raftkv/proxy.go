@@ -9,7 +9,7 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
 
-	gw "github.com/thoainguyen/mtikv/pkg/api/raftkv" // Update
+	gw "github.com/thoainguyen/mtikv/pkg/pb/raftkvpb" // Update
 
 	log "github.com/sirupsen/logrus"
 )

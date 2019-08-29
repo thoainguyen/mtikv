@@ -2,11 +2,11 @@
 // source: raftkvpb.proto
 
 /*
-Package raftkv is a reverse proxy.
+Package raftkvpb is a reverse proxy.
 
 It translates gRPC into RESTful JSON APIs.
 */
-package raftkv
+package raftkvpb
 
 import (
 	"context"

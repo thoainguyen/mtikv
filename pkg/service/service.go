@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	pb "github.com/thoainguyen/mtikv/pkg/api/raftkv"
 	raftapi "github.com/thoainguyen/mtikv/pkg/core/raft"
+	pb "github.com/thoainguyen/mtikv/pkg/pb/raftkvpb"
 
 	log "github.com/sirupsen/logrus"
 )

@@ -6,7 +6,7 @@ import (
 	"net"
 	"sync/atomic"
 
-	pb "github.com/thoainguyen/mtikv/pkg/api/pd"
+	pb "github.com/thoainguyen/mtikv/pkg/pb/pdpb"
 	"google.golang.org/grpc"
 )
 

@@ -3,13 +3,18 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"net"
+	"os"
+	"os/signal"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/thoainguyen/mtikv/config"
 	db "github.com/thoainguyen/mtikv/pkg/core/db"
 	raftstore "github.com/thoainguyen/mtikv/pkg/core/raft"
-	grpc "github.com/thoainguyen/mtikv/pkg/protocol"
+	"google.golang.org/grpc"
 	raftservice "github.com/thoainguyen/mtikv/pkg/service"
+	raftkv "github.com/thoainguyen/mtikv/pkg/pb/raftkvpb"
 
 	"go.etcd.io/etcd/raft/raftpb"
 )
@@ -37,5 +42,30 @@ func RunServer(cluster *string, id *int, kvport *int, join *bool) error {
 
 	raftStore := raftstore.NewRaftApiMTikv(<-snapshotterReady, dba, proposeC, commitC, confChangeC, errorC)
 	raftService := raftservice.NewRaftService(raftStore)
-	return grpc.RunServer(ctx, raftService, config.GRPCPort)
+	return RunRaftService(ctx, raftService, config.GRPCPort)
+}
+
+//RunRaftService run gRPC service
+func RunRaftService(ctx context.Context, raftServer raftkv.RaftServiceServer, port string) error {
+	listen, err := net.Listen("tcp", ":"+port)
+	if err != nil {
+		return err
+	}
+
+	server := grpc.NewServer()
+	raftkv.RegisterRaftServiceServer(server, raftServer)
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+
+	go func() {
+		for range c {
+			log.Info("Shutting down gRPC server...")
+			server.GracefulStop()
+			<-ctx.Done()
+		}
+	}()
+
+	log.Info("Start raft service port " + port + " ...")
+	return server.Serve(listen)
 }
