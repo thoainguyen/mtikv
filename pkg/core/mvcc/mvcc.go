@@ -1,4 +1,4 @@
-package mvcc
+package txn
 
 import (
 	"encoding/binary"
@@ -7,17 +7,19 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/tecbot/gorocksdb"
+	"github.com/thoainguyen/mtikv/pkg/core/db"
 )
 
-type MvccStorage struct {
-	db             *gorocksdb.DB
-	rdOpts         *gorocksdb.ReadOptions
-	wrOpts         *gorocksdb.WriteOptions
-	handles        []*gorocksdb.ColumnFamilyHandle
+const (
+	CF_DATA = iota
+	CF_LOCK
+	CF_WRITE
+	CF_INFO
+)
+
+type Mvcc struct {
+	store          *db.Storage
 	kDefaultPathDB string
-	cfNames        []string
-	cfOpts         []*gorocksdb.Options
 }
 
 var (
@@ -26,60 +28,19 @@ var (
 	ErrorKeyIsLocked   = errors.New("ErrorKeyIsLocked")
 )
 
-func CreateMvccStorage(pathDB string) *MvccStorage {
-	var (
-		db             *gorocksdb.DB
-		rdOpts         = gorocksdb.NewDefaultReadOptions()
-		wrOpts         = gorocksdb.NewDefaultWriteOptions()
-		kDefaultPathDB = pathDB
-		cfNames        = []string{"default", "cf_lock", "cf_write", "cf_info"}
-
-		// + Default: ${key}_${start_ts} => ${value}
-		// + Lock: ${key} => ${start_ts,primary_key,..etc}
-		// + Write: ${key}_${commit_ts} => ${start_ts}
-		// + Info: ${key} => $(commit_ts), latest commit timestamp
-
-		cfOpts = []*gorocksdb.Options{
-			gorocksdb.NewDefaultOptions(),
-			gorocksdb.NewDefaultOptions(),
-			gorocksdb.NewDefaultOptions(),
-			gorocksdb.NewDefaultOptions(),
-		}
-		options = gorocksdb.NewDefaultOptions()
-		handles []*gorocksdb.ColumnFamilyHandle
-		err     error
-	)
-
-	options.SetCreateIfMissing(true)
-
-	db, err = gorocksdb.OpenDb(options, kDefaultPathDB)
-	checkError(err)
-
-	for i := 1; i < len(cfNames); i++ {
-		cf, err := db.CreateColumnFamily(options, cfNames[i])
-		checkError(err)
-		cf.Destroy()
-	}
-	db.Close()
-
-	db, handles, err = gorocksdb.OpenDbColumnFamilies(options, kDefaultPathDB, cfNames, cfOpts)
-	checkError(err)
-
-	return &MvccStorage{db, rdOpts, wrOpts, handles, kDefaultPathDB, cfNames, cfOpts}
+func (m *Mvcc) GetStore() *db.Storage {
+	return m.store
 }
 
-func (store *MvccStorage) Destroy() {
-	var err error
-	// drop column family
-	for i := 1; i < len(store.handles); i++ {
-		err = store.db.DropColumnFamily(store.handles[i])
-		checkError(err)
+func CreateMvcc(path string) *Mvcc {
+	return &Mvcc{
+		store:          db.CreateStorage(path),
+		kDefaultPathDB: path,
 	}
-	// close db
-	for i := 0; i < len(store.handles); i++ {
-		store.handles[i].Destroy()
-	}
-	store.db.Close()
+}
+
+func (m *Mvcc) Destroy() {
+	m.store.Destroy()
 }
 
 type KeyValuePair struct {
@@ -91,18 +52,19 @@ type Mutation struct {
 }
 
 // prewrite(start_ts, data_list)
-func (store *MvccStorage) Prewrite(mutations []Mutation, start_ts uint64, primary_key string) (keyIsLockedErrors []error, err error) {
+func (m *Mvcc) Prewrite(mutations []Mutation, start_ts uint64, primary_key string) (keyIsLockedErrors []error, err error) {
 	var (
-		result  *gorocksdb.Slice
+		result  []byte
 		cf_data []KeyValuePair
 		cf_lock []KeyValuePair
 	)
 	// for keys in data_list, prewrite each key with start_ts in memory
 	for _, mutation := range mutations {
 		// get key's latest commit info write column with max_i64
-		result, _ = store.db.GetCF(store.rdOpts, store.handles[3], []byte(mutation.Key))
-		if len(result.Data()) != 0 {
-			last_commit_ts := binary.BigEndian.Uint64(result.Data())
+		result = m.store.Get(CF_INFO, []byte(mutation.Key))
+
+		if len(result) != 0 {
+			last_commit_ts := binary.BigEndian.Uint64(result)
 			// if commit_ts >= start_ts => return Error WriteConflict
 			if last_commit_ts >= start_ts {
 				err = ErrorWriteConflict
@@ -110,10 +72,10 @@ func (store *MvccStorage) Prewrite(mutations []Mutation, start_ts uint64, primar
 			}
 		}
 		// get key's lock info
-		result, _ = store.db.GetCF(store.rdOpts, store.handles[1], []byte(mutation.Key))
+		result = m.store.Get(CF_LOCK, []byte(mutation.Key))
 		// if lock exist
-		if len(result.Data()) != 0 {
-			lock_ts := binary.BigEndian.Uint64(result.Data())
+		if len(result) != 0 {
+			lock_ts := binary.BigEndian.Uint64(result)
 			// if lock_ts != start_ts => add one KeyIsLocked Error
 			if lock_ts != start_ts {
 				keyIsLockedErrors = append(keyIsLockedErrors, ErrorKeyIsLocked)
@@ -130,28 +92,29 @@ func (store *MvccStorage) Prewrite(mutations []Mutation, start_ts uint64, primar
 		return
 	} else { // commit change, write into rocksdb column family
 		for _, pair := range cf_data { // loop: write in cf_data
-			store.db.PutCF(store.wrOpts, store.handles[0], []byte(pair.Key), []byte(pair.Value))
+
+			m.store.Put(CF_DATA, []byte(pair.Key), []byte(pair.Value))
 		}
 		for _, pair := range cf_lock { // loop: write in cf_lock
-			store.db.PutCF(store.wrOpts, store.handles[1], []byte(pair.Key), []byte(pair.Value))
+			m.store.Put(CF_LOCK, []byte(pair.Key), []byte(pair.Value))
 		}
 	}
 	return
 }
 
 // commit(keys, start_ts, commit_ts)
-func (store *MvccStorage) Commit(start_ts, commit_ts uint64, mutations []Mutation) error {
+func (m *Mvcc) Commit(start_ts, commit_ts uint64, mutations []Mutation) error {
 	var (
-		result   *gorocksdb.Slice
+		result   []byte
 		cf_lock  []KeyValuePair
 		cf_write []KeyValuePair
 	)
 	// for each key in keys, do commit
 	for _, mutation := range mutations {
 		// get key's lock
-		result, _ = store.db.GetCF(store.rdOpts, store.handles[1], []byte(mutation.Key))
-		if len(result.Data()) != 0 { // if lock exist
-			value := strings.Split(string(result.Data()), "_")
+		result = m.store.Get(CF_LOCK, []byte(mutation.Key))
+		if len(result) != 0 { // if lock exist
+			value := strings.Split(string(result), "_")
 			lock_ts, _ := strconv.ParseUint(value[2], 10, 64)
 			// if lock_ts == start_ts
 			if lock_ts == start_ts {
@@ -162,9 +125,9 @@ func (store *MvccStorage) Commit(start_ts, commit_ts uint64, mutations []Mutatio
 			}
 		} else { // lock not exist or txn dismatch
 			// get(key, start_ts) from write
-			result, _ = store.db.GetCF(store.rdOpts, store.handles[2], []byte(mutation.Key+"_"+strconv.FormatUint(commit_ts, 10)))
-			if len(result.Data()) != 0 { // if write exist
-				write_type := strings.Split(string(result.Data()), "_")[0]
+			result = m.store.Get(CF_WRITE, []byte(mutation.Key+"_"+strconv.FormatUint(commit_ts, 10)))
+			if len(result) != 0 { // if write exist
+				write_type := strings.Split(string(result), "_")[0]
 				switch write_type {
 				// write_type in {PUT/DELETE/Lock}, the tx is already commited
 				case "P", "D", "L":
@@ -179,12 +142,12 @@ func (store *MvccStorage) Commit(start_ts, commit_ts uint64, mutations []Mutatio
 	}
 	// commit change
 	for _, pair := range cf_write {
-		store.db.PutCF(store.wrOpts, store.handles[2], []byte(pair.Key), []byte(pair.Value))
+		m.store.Put(CF_WRITE, []byte(pair.Key), []byte(pair.Value))
 	}
 	for _, pair := range cf_lock {
-		store.db.DeleteCF(store.wrOpts, store.handles[1], []byte(pair.Key))
+		m.store.Delete(CF_LOCK, []byte(pair.Key))
 		// write key's latest commit
-		store.db.PutCF(store.wrOpts, store.handles[3], []byte(pair.Key), []byte(pair.Value))
+		m.store.Put(CF_INFO, []byte(pair.Key), []byte(pair.Value))
 	}
 	return nil
 }

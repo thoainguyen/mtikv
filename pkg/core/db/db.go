@@ -1,8 +1,6 @@
 package db
 
 import (
-	"fmt"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/tecbot/gorocksdb"
 )
@@ -57,7 +55,7 @@ func (db *DB) SaveSnapShot() string {
 	sstWriter := gorocksdb.NewSSTFileWriter(envOptions, options)
 	err := sstWriter.Open(db.snapPath)
 	if err != nil {
-		log.Fatalf("(1) %v", err)
+		log.Fatal(err)
 	}
 	it := db.database.NewIterator(db.readOpts)
 	defer it.Close()
@@ -65,11 +63,11 @@ func (db *DB) SaveSnapShot() string {
 		sstWriter.Add(it.Key().Data(), it.Value().Data())
 	}
 	if err := it.Err(); err != nil {
-		log.Fatalf("(2) %v", err)
+		log.Fatal(err)
 	}
 	err = sstWriter.Finish()
 	if err != nil {
-		log.Fatalf("(3) %v", err)
+		log.Fatal(err)
 	}
 	return db.snapPath
 }
@@ -78,7 +76,7 @@ func (db *DB) LoadSnapShot(filesPath string) {
 	opts := gorocksdb.NewDefaultIngestExternalFileOptions()
 	err := db.database.IngestExternalFile([]string{filesPath}, opts)
 	if err != nil {
-		fmt.Printf("(4) %v", err)
+		log.Fatal(err)
 	}
 }
 

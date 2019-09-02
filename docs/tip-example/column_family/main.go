@@ -1,5 +1,7 @@
-// @author: thoainh
-
+/**
+*
+* @author: thoainh
+ */
 package main
 
 import (
