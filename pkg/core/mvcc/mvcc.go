@@ -26,6 +26,7 @@ var (
 	ErrorWriteConflict = errors.New("ErrorWriteConflict")
 	ErrorTxnConflict   = errors.New("ErrorTxnConflict")
 	ErrorKeyIsLocked   = errors.New("ErrorKeyIsLocked")
+	ErrorLockNotFound  = errors.New("ErrorLockNotFound")
 )
 
 func (m *Mvcc) GetStore() *db.Storage {
@@ -120,7 +121,7 @@ func (m *Mvcc) Commit(start_ts, commit_ts uint64, mutations []Mutation) error {
 			if lock_ts == start_ts {
 				// write memory:set write(commit_ts, lock_type, start_ts)
 				cf_write = append(cf_write, KeyValuePair{mutation.Key + "_" + strconv.FormatUint(commit_ts, 10), string(mutation.Op) + "_" + strconv.FormatUint(start_ts, 10)})
-				// write memory: current lock(key) will be removed and latest commit_ts
+				// write memory: current lock(key) will be removed and latest commit_ts will be recorded in cf_info
 				cf_lock = append(cf_lock, KeyValuePair{mutation.Key, strconv.FormatUint(commit_ts, 10)})
 			}
 		} else { // lock not exist or txn dismatch
@@ -137,6 +138,8 @@ func (m *Mvcc) Commit(start_ts, commit_ts uint64, mutations []Mutation) error {
 					// return ERROR Txn Conflict, lock not found
 					return ErrorTxnConflict
 				}
+			} else {
+				return ErrorLockNotFound
 			}
 		}
 	}

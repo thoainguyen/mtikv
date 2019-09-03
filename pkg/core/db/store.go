@@ -27,6 +27,7 @@ func CreateStorage(path string) *Storage {
 		// + Default: ${key}_${start_ts} => ${value}
 		// + Lock: ${key} => ${start_ts,primary_key,..etc}
 		// + Write: ${key}_${commit_ts} => ${start_ts}
+		// + Info: ${key} => ${commit_ts}
 
 		cfOpts = []*gorocksdb.Options{
 			gorocksdb.NewDefaultOptions(),
@@ -71,6 +72,10 @@ func (store *Storage) Put(cf int, key []byte, value []byte) {
 func (store *Storage) Delete(cf int, key []byte) {
 	err := store.db.DeleteCF(store.wrOpts, store.handles[cf], key)
 	checkError(err)
+}
+
+func (store *Storage) MvccGet(ts uint64, key []byte) {
+
 }
 
 func (store *Storage) Destroy() {
