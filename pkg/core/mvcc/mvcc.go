@@ -1,13 +1,13 @@
-package txn
+package mvcc
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"log"
-	"strconv"
-	"strings"
 
 	"github.com/thoainguyen/mtikv/pkg/core/db"
+	pb "github.com/thoainguyen/mtikv/pkg/pb/mtikvpb"
 )
 
 const (
@@ -43,25 +43,21 @@ func (m *Mvcc) Destroy() {
 	m.store.Destroy()
 }
 
-type KeyValuePair struct {
-	Key, Value string
-}
-type Mutation struct {
-	KeyValuePair
-	Op string
-}
-
 // prewrite(start_ts, data_list)
-func (m *Mvcc) Prewrite(mutations []Mutation, start_ts uint64, primary_key string) (keyIsLockedErrors []error, err error) {
+func (m *Mvcc) Prewrite(mutations []pb.Mutation, start_ts uint64, primary_key []byte) (keyIsLockedErrors []error, err error) {
 	var (
 		result  []byte
-		cf_data []KeyValuePair
-		cf_lock []KeyValuePair
+		cf_data []pb.KeyValue
+		cf_lock []pb.KeyValue
 	)
+
+	startTs := make([]byte, 8)
+	binary.BigEndian.PutUint64(startTs, start_ts)
+
 	// for keys in data_list, prewrite each key with start_ts in memory
 	for _, mutation := range mutations {
 		// get key's latest commit info write column with max_i64
-		result = m.store.Get(CF_INFO, []byte(mutation.Key))
+		result = m.store.Get(CF_INFO, mutation.Key)
 
 		if len(result) != 0 {
 			last_commit_ts := binary.BigEndian.Uint64(result)
@@ -72,7 +68,7 @@ func (m *Mvcc) Prewrite(mutations []Mutation, start_ts uint64, primary_key strin
 			}
 		}
 		// get key's lock info
-		result = m.store.Get(CF_LOCK, []byte(mutation.Key))
+		result = m.store.Get(CF_LOCK, mutation.Key)
 		// if lock exist
 		if len(result) != 0 {
 			lock_ts := binary.BigEndian.Uint64(result)
@@ -81,9 +77,19 @@ func (m *Mvcc) Prewrite(mutations []Mutation, start_ts uint64, primary_key strin
 				keyIsLockedErrors = append(keyIsLockedErrors, ErrorKeyIsLocked)
 			}
 		} else {
-			// write in memory:lock(key, start_ts, primary) & default(value)
-			cf_data = append(cf_data, KeyValuePair{mutation.Key + "_" + strconv.FormatUint(start_ts, 10), mutation.Value})
-			cf_lock = append(cf_lock, KeyValuePair{mutation.Key, mutation.Op + "_" + string(primary_key) + "_" + strconv.FormatUint(start_ts, 10)})
+
+			cf_data = append(cf_data, pb.KeyValue{
+				Key:   bytes.Join([][]byte{mutation.Key, startTs}, []byte("|")),
+				Value: mutation.Value,
+			})
+
+			op := make([]byte, 4)
+			binary.BigEndian.PutUint32(op, uint32(mutation.Op))
+
+			cf_lock = append(cf_lock, pb.KeyValue{
+				Key:   mutation.Key,
+				Value: bytes.Join([][]byte{op, primary_key, startTs}, []byte("|")),
+			})
 		}
 	}
 	// if KeyIsLocked exist => return slice KeyIsLocked Error
@@ -93,42 +99,63 @@ func (m *Mvcc) Prewrite(mutations []Mutation, start_ts uint64, primary_key strin
 	} else { // commit change, write into rocksdb column family
 		for _, pair := range cf_data { // loop: write in cf_data
 
-			m.store.Put(CF_DATA, []byte(pair.Key), []byte(pair.Value))
+			m.store.Put(CF_DATA, pair.Key, pair.Value)
 		}
 		for _, pair := range cf_lock { // loop: write in cf_lock
-			m.store.Put(CF_LOCK, []byte(pair.Key), []byte(pair.Value))
+			m.store.Put(CF_LOCK, pair.Key, pair.Value)
 		}
 	}
 	return
 }
 
 // commit(keys, start_ts, commit_ts)
-func (m *Mvcc) Commit(start_ts, commit_ts uint64, mutations []Mutation) error {
+func (m *Mvcc) Commit(start_ts, commit_ts uint64, mutations []pb.Mutation) error {
 	var (
 		result   []byte
-		cf_lock  []KeyValuePair
-		cf_write []KeyValuePair
+		cf_lock  []pb.KeyValue
+		cf_write []pb.KeyValue
 	)
+
+	startTs := make([]byte, 8)
+	binary.BigEndian.PutUint64(startTs, start_ts)
+
+	commitTs := make([]byte, 8)
+	binary.BigEndian.PutUint64(commitTs, commit_ts)
+
 	// for each key in keys, do commit
 	for _, mutation := range mutations {
+
 		// get key's lock
-		result = m.store.Get(CF_LOCK, []byte(mutation.Key))
+		result = m.store.Get(CF_LOCK, mutation.Key)
 		if len(result) != 0 { // if lock exist
-			value := strings.Split(string(result), "_")
-			lock_ts, _ := strconv.ParseUint(value[2], 10, 64)
+			value := bytes.Split(result, []byte("|"))
+			lock_ts := binary.BigEndian.Uint64(value[2])
+
 			// if lock_ts == start_ts
 			if lock_ts == start_ts {
+
+				// get key's operator
+				op := make([]byte, 4)
+				binary.BigEndian.PutUint32(op, uint32(mutation.Op))
+
 				// write memory:set write(commit_ts, lock_type, start_ts)
-				cf_write = append(cf_write, KeyValuePair{mutation.Key + "_" + strconv.FormatUint(commit_ts, 10), string(mutation.Op) + "_" + strconv.FormatUint(start_ts, 10)})
+				cf_write = append(cf_write, pb.KeyValue{
+					Key:   bytes.Join([][]byte{mutation.Key, commitTs}, []byte("|")),
+					Value: bytes.Join([][]byte{op, startTs}, []byte("|")),
+				})
+
 				// write memory: current lock(key) will be removed and latest commit_ts will be recorded in cf_info
-				cf_lock = append(cf_lock, KeyValuePair{mutation.Key, strconv.FormatUint(commit_ts, 10)})
+				cf_lock = append(cf_lock, pb.KeyValue{
+					Key:   mutation.Key,
+					Value: commitTs,
+				})
 			}
 		} else { // lock not exist or txn dismatch
 			// get(key, start_ts) from write
-			result = m.store.Get(CF_WRITE, []byte(mutation.Key+"_"+strconv.FormatUint(commit_ts, 10)))
+			result = m.store.Get(CF_WRITE, bytes.Join([][]byte{mutation.Key, commitTs}, []byte("|")))
 			if len(result) != 0 { // if write exist
-				write_type := strings.Split(string(result), "_")[0]
-				if write_type != "R" { // case "P", "D", "L"
+				write_type := pb.Op(binary.BigEndian.Uint32(bytes.Split(result, []byte("|"))[0]))
+				if write_type != pb.Op_RBACK { // case 'P', 'D', 'L'
 					// the txn is already committed
 					return nil
 				}
@@ -139,12 +166,12 @@ func (m *Mvcc) Commit(start_ts, commit_ts uint64, mutations []Mutation) error {
 	}
 	// commit change
 	for _, pair := range cf_write {
-		m.store.Put(CF_WRITE, []byte(pair.Key), []byte(pair.Value))
+		m.store.Put(CF_WRITE, pair.Key, pair.Value)
 	}
 	for _, pair := range cf_lock {
-		m.store.Delete(CF_LOCK, []byte(pair.Key))
+		m.store.Delete(CF_LOCK, pair.Key)
 		// write key's latest commit
-		m.store.Put(CF_INFO, []byte(pair.Key), []byte(pair.Value))
+		m.store.Put(CF_INFO, pair.Key, pair.Value)
 	}
 	return nil
 }

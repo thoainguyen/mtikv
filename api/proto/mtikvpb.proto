@@ -6,10 +6,10 @@ option java_package = "mtikv";
 
 import "google/api/annotations.proto";
 
-
 enum Op {
-    Put = 0;
-    Del = 1;
+    PUT = 0;
+    DEL = 1;
+    RBACK = 2;
 }
 
 enum Error {
@@ -23,11 +23,10 @@ enum KeyError {
 }
 
 
-message KvPair {
+message KeyValue {
     bytes key = 1;
     bytes value = 2;
 }
-
 
 message Mutation {
     Op op = 1;

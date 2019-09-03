@@ -78,6 +78,7 @@ func (store *Storage) Delete(cf int, key []byte) {
 func (store *Storage) Destroy() {
 	var err error
 	// drop column family
+	
 	for i := 1; i < len(store.handles); i++ {
 		err = store.db.DropColumnFamily(store.handles[i])
 		checkError(err)
@@ -86,6 +87,7 @@ func (store *Storage) Destroy() {
 	for i := 0; i < len(store.handles); i++ {
 		store.handles[i].Destroy()
 	}
+
 	store.db.Close()
 }
 
