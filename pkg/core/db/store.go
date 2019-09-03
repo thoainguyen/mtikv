@@ -74,9 +74,6 @@ func (store *Storage) Delete(cf int, key []byte) {
 	checkError(err)
 }
 
-func (store *Storage) MvccGet(ts uint64, key []byte) {
-
-}
 
 func (store *Storage) Destroy() {
 	var err error

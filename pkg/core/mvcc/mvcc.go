@@ -24,7 +24,6 @@ type Mvcc struct {
 
 var (
 	ErrorWriteConflict = errors.New("ErrorWriteConflict")
-	ErrorTxnConflict   = errors.New("ErrorTxnConflict")
 	ErrorKeyIsLocked   = errors.New("ErrorKeyIsLocked")
 	ErrorLockNotFound  = errors.New("ErrorLockNotFound")
 )
@@ -129,18 +128,13 @@ func (m *Mvcc) Commit(start_ts, commit_ts uint64, mutations []Mutation) error {
 			result = m.store.Get(CF_WRITE, []byte(mutation.Key+"_"+strconv.FormatUint(commit_ts, 10)))
 			if len(result) != 0 { // if write exist
 				write_type := strings.Split(string(result), "_")[0]
-				switch write_type {
-				// write_type in {PUT/DELETE/Lock}, the tx is already commited
-				case "P", "D", "L":
-					break
-				// write_type is Rollback or None
-				default:
-					// return ERROR Txn Conflict, lock not found
-					return ErrorTxnConflict
+				if write_type != "R" { // case "P", "D", "L"
+					// the txn is already committed
+					return nil
 				}
-			} else {
-				return ErrorLockNotFound
 			}
+			// write_type is Rollback or None
+			return ErrorLockNotFound
 		}
 	}
 	// commit change
@@ -153,6 +147,11 @@ func (m *Mvcc) Commit(start_ts, commit_ts uint64, mutations []Mutation) error {
 		m.store.Put(CF_INFO, []byte(pair.Key), []byte(pair.Value))
 	}
 	return nil
+}
+
+func (m *Mvcc) MvccGet(ts uint64, key []byte) (value []byte, err error) {
+
+	return nil, nil
 }
 
 func checkError(err error) {
