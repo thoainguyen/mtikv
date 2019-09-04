@@ -11,7 +11,7 @@ import (
 	"go.etcd.io/etcd/raft/raftpb"
 )
 
-type KeyValuePair struct {
+type KeyValue struct {
 	Key   string
 	Value string
 }
@@ -25,8 +25,8 @@ type RaftLayer struct {
 	snapshotter *snap.Snapshotter
 }
 
-func NewRaftApiMTikv(snapshotter *snap.Snapshotter, kv *db.DB, proposeC chan<- string, commitC <-chan *string,
-	confChangeC chan<- raftpb.ConfChange, errorC <-chan error) *RaftLayer {
+func NewRaftApiMTikv(snapshotter *snap.Snapshotter, kv *db.DB, proposeC chan<- string,
+	commitC <-chan *string, confChangeC chan<- raftpb.ConfChange, errorC <-chan error) *RaftLayer {
 	s := &RaftLayer{
 		kvStore:     kv,
 		confChangeC: confChangeC,
@@ -50,14 +50,15 @@ func (raftLayer *RaftLayer) rReadCommits(commitC <-chan *string, errorC <-chan e
 			if err != nil {
 				log.Panic(err)
 			}
-			log.Printf("loading snapshot at term %d and index %d", snapshot.Metadata.Term, snapshot.Metadata.Index)
+			log.Printf("loading snapshot at term %d and index %d", snapshot.Metadata.Term,
+				snapshot.Metadata.Index)
 			if err := raftLayer.RecoverFromSnapshot(snapshot.Data); err != nil {
 				log.Panic(err)
 			}
 			continue
 		}
 
-		var dataKv KeyValuePair
+		var dataKv KeyValue
 		dec := gob.NewDecoder(bytes.NewBufferString(*data))
 		if err := dec.Decode(&dataKv); err != nil {
 			log.Fatalf("raft -> could not decode message (%v)", err)
@@ -76,7 +77,7 @@ func (raftLayer *RaftLayer) rReadCommits(commitC <-chan *string, errorC <-chan e
 
 func (raftLayer *RaftLayer) PutData(key string, value string) error {
 	var buf bytes.Buffer
-	if err := gob.NewEncoder(&buf).Encode(KeyValuePair{key, value}); err != nil {
+	if err := gob.NewEncoder(&buf).Encode(KeyValue{key, value}); err != nil {
 		log.Fatal(err)
 	}
 	raftLayer.proposeC <- buf.String()

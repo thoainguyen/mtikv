@@ -176,8 +176,8 @@ func (m *Mvcc) Commit(start_ts, commit_ts uint64, mutations []pb.Mutation) error
 	return nil
 }
 
-func (m *Mvcc) MvccGet(ts uint64, key []byte) (value []byte, err error) {
-
+func (m *Mvcc) Get(ts uint64, key []byte) (value []byte, err error) {
+	
 	return nil, nil
 }
 
