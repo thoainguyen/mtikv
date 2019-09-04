@@ -50,7 +50,7 @@ func TestDelete(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	
+
 	err = db.CloseDB()
 	if err != nil {
 		t.Error(err)
