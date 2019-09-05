@@ -58,6 +58,10 @@ func CreateStorage(path string) *Storage {
 	return &Storage{db, rdOpts, wrOpts, handles, kDefaultPathDB, cfNames, cfOpts}
 }
 
+func (store *Storage) Interator(cf int) *gorocksdb.Iterator {
+	return store.db.NewIteratorCF(store.rdOpts, store.handles[cf])
+}
+
 func (store *Storage) Get(cf int, key []byte) []byte {
 	data, err := store.db.GetCF(store.rdOpts, store.handles[cf], key)
 	checkError(err)
@@ -77,7 +81,6 @@ func (store *Storage) Delete(cf int, key []byte) {
 func (store *Storage) Destroy() {
 	var err error
 	// drop column family
-
 	for i := 1; i < len(store.handles); i++ {
 		err = store.db.DropColumnFamily(store.handles[i])
 		checkError(err)
@@ -86,7 +89,6 @@ func (store *Storage) Destroy() {
 	for i := 0; i < len(store.handles); i++ {
 		store.handles[i].Destroy()
 	}
-
 	store.db.Close()
 }
 

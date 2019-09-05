@@ -2,10 +2,10 @@ package mvcc
 
 import (
 	"bytes"
-	"encoding/binary"
 	"errors"
 	"log"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/thoainguyen/mtikv/pkg/core/db"
 	pb "github.com/thoainguyen/mtikv/pkg/pb/mtikvpb"
 )
@@ -43,6 +43,21 @@ func (m *Mvcc) Destroy() {
 	m.store.Destroy()
 }
 
+func (m *Mvcc) Marshal(pb proto.Message) []byte {
+	data, err := proto.Marshal(pb)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return data
+}
+
+func (m *Mvcc) Unmarshal(buf []byte, pb proto.Message) {
+	err := proto.Unmarshal(buf, pb)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
 // prewrite(start_ts, data_list)
 func (m *Mvcc) Prewrite(mutations []pb.Mutation, start_ts uint64, primary_key []byte) (keyIsLockedErrors []error, err error) {
 	var (
@@ -51,18 +66,17 @@ func (m *Mvcc) Prewrite(mutations []pb.Mutation, start_ts uint64, primary_key []
 		cf_lock []pb.KeyValue
 	)
 
-	startTs := make([]byte, 8)
-	binary.BigEndian.PutUint64(startTs, start_ts)
-
 	// for keys in data_list, prewrite each key with start_ts in memory
 	for _, mutation := range mutations {
 		// get key's latest commit info write column with max_i64
 		result = m.store.Get(CF_INFO, mutation.Key)
 
 		if len(result) != 0 {
-			last_commit_ts := binary.BigEndian.Uint64(result)
+			info := &pb.MvccObject{}
+			m.Unmarshal(result, info)
+
 			// if commit_ts >= start_ts => return Error WriteConflict
-			if last_commit_ts >= start_ts {
+			if info.GetLatestCommit() >= start_ts {
 				err = ErrorWriteConflict
 				return
 			}
@@ -71,24 +85,34 @@ func (m *Mvcc) Prewrite(mutations []pb.Mutation, start_ts uint64, primary_key []
 		result = m.store.Get(CF_LOCK, mutation.Key)
 		// if lock exist
 		if len(result) != 0 {
-			lock_ts := binary.BigEndian.Uint64(result)
+			lock := &pb.MvccObject{}
+			m.Unmarshal(result, lock)
+
 			// if lock_ts != start_ts => add one KeyIsLocked Error
-			if lock_ts != start_ts {
+			if lock.GetStartTs() != start_ts {
 				keyIsLockedErrors = append(keyIsLockedErrors, ErrorKeyIsLocked)
 			}
 		} else {
 
 			cf_data = append(cf_data, pb.KeyValue{
-				Key:   bytes.Join([][]byte{mutation.Key, startTs}, []byte("|")),
+				Key: m.Marshal(
+					&pb.MvccObject{
+						Key:     mutation.Key,
+						StartTs: start_ts,
+					},
+				),
 				Value: mutation.Value,
 			})
 
-			op := make([]byte, 4)
-			binary.BigEndian.PutUint32(op, uint32(mutation.Op))
-
 			cf_lock = append(cf_lock, pb.KeyValue{
-				Key:   mutation.Key,
-				Value: bytes.Join([][]byte{op, primary_key, startTs}, []byte("|")),
+				Key: mutation.Key,
+				Value: m.Marshal(
+					&pb.MvccObject{
+						Op:         mutation.Op,
+						PrimaryKey: primary_key,
+						StartTs:    start_ts,
+					},
+				),
 			})
 		}
 	}
@@ -98,7 +122,6 @@ func (m *Mvcc) Prewrite(mutations []pb.Mutation, start_ts uint64, primary_key []
 		return
 	} else { // commit change, write into rocksdb column family
 		for _, pair := range cf_data { // loop: write in cf_data
-
 			m.store.Put(CF_DATA, pair.Key, pair.Value)
 		}
 		for _, pair := range cf_lock { // loop: write in cf_lock
@@ -116,46 +139,53 @@ func (m *Mvcc) Commit(start_ts, commit_ts uint64, mutations []pb.Mutation) error
 		cf_write []pb.KeyValue
 	)
 
-	startTs := make([]byte, 8)
-	binary.BigEndian.PutUint64(startTs, start_ts)
-
-	commitTs := make([]byte, 8)
-	binary.BigEndian.PutUint64(commitTs, commit_ts)
-
 	// for each key in keys, do commit
 	for _, mutation := range mutations {
 
 		// get key's lock
 		result = m.store.Get(CF_LOCK, mutation.Key)
 		if len(result) != 0 { // if lock exist
-			value := bytes.Split(result, []byte("|"))
-			lock_ts := binary.BigEndian.Uint64(value[2])
+			lock := &pb.MvccObject{}
+			m.Unmarshal(result, lock)
 
 			// if lock_ts == start_ts
-			if lock_ts == start_ts {
-
-				// get key's operator
-				op := make([]byte, 4)
-				binary.BigEndian.PutUint32(op, uint32(mutation.Op))
+			if lock.GetStartTs() == start_ts {
 
 				// write memory:set write(commit_ts, lock_type, start_ts)
 				cf_write = append(cf_write, pb.KeyValue{
-					Key:   bytes.Join([][]byte{mutation.Key, commitTs}, []byte("|")),
-					Value: bytes.Join([][]byte{op, startTs}, []byte("|")),
+					Key: m.Marshal(
+						&pb.MvccObject{
+							Key:      mutation.Key,
+							CommitTs: commit_ts,
+						},
+					),
+					Value: m.Marshal(
+						&pb.MvccObject{
+							Op:      mutation.Op,
+							StartTs: start_ts,
+						},
+					),
 				})
 
 				// write memory: current lock(key) will be removed and latest commit_ts will be recorded in cf_info
 				cf_lock = append(cf_lock, pb.KeyValue{
-					Key:   mutation.Key,
-					Value: commitTs,
+					Key: mutation.Key,
+					Value: m.Marshal(
+						&pb.MvccObject{
+							LatestCommit: commit_ts,
+						},
+					),
 				})
 			}
 		} else { // lock not exist or txn dismatch
 			// get(key, start_ts) from write
-			result = m.store.Get(CF_WRITE, bytes.Join([][]byte{mutation.Key, commitTs}, []byte("|")))
+			result = m.store.Get(CF_WRITE, m.Marshal(&pb.MvccObject{Key: mutation.Key, CommitTs: commit_ts}))
 			if len(result) != 0 { // if write exist
-				write_type := pb.Op(binary.BigEndian.Uint32(bytes.Split(result, []byte("|"))[0]))
-				if write_type != pb.Op_RBACK { // case 'P', 'D', 'L'
+
+				write := &pb.MvccObject{}
+				m.Unmarshal(result, write)
+
+				if write.GetOp() != pb.Op_RBACK { // case 'P', 'D', 'L'
 					// the txn is already committed
 					return nil
 				}
@@ -176,8 +206,33 @@ func (m *Mvcc) Commit(start_ts, commit_ts uint64, mutations []pb.Mutation) error
 	return nil
 }
 
-func (m *Mvcc) Get(ts uint64, key []byte) (value []byte, err error) {
-	
+func (m *Mvcc) Get(start_ts uint64, key []byte) ([]byte, error) {
+
+	var (
+		keyGet   []byte
+		valueGet []byte
+		write    = &pb.MvccObject{}
+		counter  = start_ts
+	)
+
+	for counter >= 0 {
+		// TODO : check lock error
+		keyGet = m.Marshal(&pb.MvccObject{Key: key, CommitTs: counter})
+		valueGet = m.store.Get(CF_WRITE, keyGet)
+		if bytes.Compare(valueGet, []byte(nil)) == 0 {
+			counter -= 1
+			continue
+		}
+		m.Unmarshal(valueGet, write)
+		if write.GetOp() == pb.Op_DEL {
+			return nil, nil
+		}
+		if write.GetOp() == pb.Op_RBACK {
+			counter -= 1
+			continue
+		}
+		return m.store.Get(CF_DATA, m.Marshal(&pb.MvccObject{Key: key, StartTs: write.GetStartTs()})), nil
+	}
 	return nil, nil
 }
 

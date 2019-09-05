@@ -1,6 +1,8 @@
 package db
 
 import (
+	"bytes"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/tecbot/gorocksdb"
 )
@@ -47,6 +49,25 @@ func (db *DB) PutData(key string, value string) error {
 
 func (db *DB) DeleteData(key string) error {
 	return db.database.Delete(db.writeOpts, []byte(key))
+}
+
+func (db *DB) Traverse(startKey []byte, fn func(key, val []byte)) error {
+	iter := db.database.NewIterator(db.readOpts)
+	defer iter.Close()
+	iter.SeekToLast()
+	if err := iter.Err(); err != nil {
+		return err
+	}
+	for ; iter.Valid(); iter.Prev() {
+		if bytes.Compare(iter.Key().Data(), startKey) < 0 {
+			fn(iter.Key().Data(), iter.Value().Data())
+		}
+	}
+
+	if err := iter.Err(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (db *DB) SaveSnapShot() string {
