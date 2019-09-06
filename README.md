@@ -2,22 +2,36 @@
 
 Mini [TiKV](https://github.com/tikv/tikv): A Distributed transactional key-value database
 
-## Architecture
+## 1. Architecture
 
-### Overview
-
+### 1.1. Overview
 
 ![](./docs/images/mtikv.png)
 
-### Raft group
+### 1.2 Raft group
 
 ![](./docs/images/mtikv-raft-group.png)
 
+## 2. Flow
 
-### Raw Service
+### 2.1. TxnKV
 
 
-![](./docs/images/mtikv-rawkv.png)
+```plantuml
+client -> mtikv : Begin_Txn()
+client -> pd : GetTs(start_ts)
+loop command
+    alt get
+        client -> mtikv: get(key)
+    else set, delete
+        client -> client: write to Buffer
+end
+client -> mtikv: Commit_Txn()
+client -> pd: GetTs(commit_ts)
+client -> mtikv: Do 2PC
+
+```
+
 
 ## Getting Started
 
