@@ -6,17 +6,20 @@ Mini [TiKV](https://github.com/tikv/tikv): A Distributed transactional key-value
 
 ### Overview
 
-![](./docs/images/mtikv.png)
+<div align="center"><img src="./docs/images/mtikv.png" width="500"/></div>
+
 
 ### Raft group
 
-![](./docs/images/mtikv-raft-group.png)
+<div align="center"><img src="./docs/images/mtikv-raft-group.png" width="500"/></div>
+
 
 ## Flow
 
 ### TxnKV
 
-![](./docs/images/txnkvflow.svg)
+<div align="center"><img src="./docs/images/txnkvflow.svg" width="500"/></div>
+
 
 
 ## Getting Started
