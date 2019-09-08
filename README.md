@@ -21,6 +21,11 @@ Mini [TiKV](https://github.com/tikv/tikv): A Distributed transactional key-value
 <div align="center"><img src="./docs/images/txnkvflow.svg" width="500"/></div>
 
 
+### RawKv
+
+<div align="center"><img src="./docs/images/rawkvflow.svg" width="420"/></div>
+
+
 
 ## Getting Started
 

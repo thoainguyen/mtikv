@@ -12,9 +12,9 @@ import (
 	"github.com/thoainguyen/mtikv/config"
 	db "github.com/thoainguyen/mtikv/pkg/core/db"
 	raftstore "github.com/thoainguyen/mtikv/pkg/core/raft"
-	"google.golang.org/grpc"
-	raftservice "github.com/thoainguyen/mtikv/pkg/service"
 	raftkv "github.com/thoainguyen/mtikv/pkg/pb/raftkvpb"
+	raftservice "github.com/thoainguyen/mtikv/pkg/service"
+	"google.golang.org/grpc"
 
 	"go.etcd.io/etcd/raft/raftpb"
 )
