@@ -39,8 +39,9 @@ message KeyValue {
 
 message Mutation {
     Op op = 1;
-    bytes key = 2;
-    bytes value = 3;
+    int32 cf = 2;
+    bytes key = 3;
+    bytes value = 4;
 }
 
 message PrewriteRequest {

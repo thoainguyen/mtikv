@@ -3,6 +3,8 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/thoainguyen/mtikv/pkg/core/raftstore"
+	"github.com/thoainguyen/tidb-internals/mtikv/pkg/core/raft"
 	"net"
 	"os"
 	"os/signal"
@@ -10,8 +12,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/thoainguyen/mtikv/config"
-	db "github.com/thoainguyen/mtikv/pkg/core/db"
-	raftstore "github.com/thoainguyen/mtikv/pkg/core/raft"
+	"github.com/thoainguyen/mtikv/pkg/core/db"
 	raftkv "github.com/thoainguyen/mtikv/pkg/pb/raftkvpb"
 	raftservice "github.com/thoainguyen/mtikv/pkg/service"
 	"google.golang.org/grpc"
@@ -20,12 +21,10 @@ import (
 )
 
 //RunServer run gRPC server
-func RunServer(cluster *string, id *int, kvport *int, join *bool) error {
+func RunServer(cluster *string, id *int, port *string, join *bool) error {
 	ctx := context.Background()
 
-	dba, err := db.CreateDB(
-		fmt.Sprintf("%s-%d", config.DBPath, *id),
-		fmt.Sprintf("%s-%d", config.SnapPath, *id))
+	dba, err := db.CreateDB(fmt.Sprintf("%s-%d", config.DBPath, *id))
 	if err != nil {
 		return err
 	}
@@ -35,14 +34,11 @@ func RunServer(cluster *string, id *int, kvport *int, join *bool) error {
 	confChangeC := make(chan raftpb.ConfChange)
 	defer close(confChangeC)
 
-	var rkv *raftstore.RaftLayer
-	getSnapshot := func() ([]byte, error) { return rkv.GetSnapshot() }
-	commitC, errorC, snapshotterReady := raftstore.NewRaftNode(*id, strings.Split(*cluster, ","),
-		*join, getSnapshot, proposeC, confChangeC)
+	commitC, errorC := raftstore.NewRaftNode(*id, strings.Split(*cluster, ","), *join, proposeC, confChangeC)
 
-	raftStore := raftstore.NewRaftApiMTikv(<-snapshotterReady, dba, proposeC, commitC, confChangeC, errorC)
+	raftStore := raft.NewRaftApiMTikv(dba, proposeC, commitC, confChangeC, errorC)
 	raftService := raftservice.NewRaftService(raftStore)
-	return RunRaftService(ctx, raftService, config.GRPCPort)
+	return RunRaftService(ctx, raftService, *port)
 }
 
 //RunRaftService run gRPC service
@@ -66,6 +62,6 @@ func RunRaftService(ctx context.Context, raftServer raftkv.RaftServiceServer, po
 		}
 	}()
 
-	log.Info("Start raft service port " + port + " ...")
+	log.Info("Start raftstore service port " + port + " ...")
 	return server.Serve(listen)
 }

@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	raftServerEndpoint = flag.String("raft", "localhost:10002", "gRPC server endpoint")
+	raftServerEndpoint = flag.String("raftstore", "localhost:12380", "gRPC server endpoint")
 )
 
 func run() error {

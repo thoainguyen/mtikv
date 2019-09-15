@@ -1,12 +1,12 @@
-package db
+package store
 
 import (
-	"log"
-
+	"github.com/thoainguyen/mtikv/pkg/core/utils"
 	"github.com/tecbot/gorocksdb"
 )
 
-type Storage struct {
+
+type Store struct {
 	db             *gorocksdb.DB
 	rdOpts         *gorocksdb.ReadOptions
 	wrOpts         *gorocksdb.WriteOptions
@@ -16,7 +16,7 @@ type Storage struct {
 	cfOpts         []*gorocksdb.Options
 }
 
-func CreateStorage(path string) *Storage {
+func CreateStore(path string) *Store {
 	var (
 		db             *gorocksdb.DB
 		rdOpts         = gorocksdb.NewDefaultReadOptions()
@@ -43,47 +43,44 @@ func CreateStorage(path string) *Storage {
 	options.SetCreateIfMissing(true)
 
 	db, err = gorocksdb.OpenDb(options, kDefaultPathDB)
-	checkError(err)
+	utils.CheckError(err)
 
 	for i := 1; i < len(cfNames); i++ {
 		cf, err := db.CreateColumnFamily(options, cfNames[i])
-		checkError(err)
+		utils.CheckError(err)
 		cf.Destroy()
 	}
 	db.Close()
 
 	db, handles, err = gorocksdb.OpenDbColumnFamilies(options, kDefaultPathDB, cfNames, cfOpts)
-	checkError(err)
+	utils.CheckError(err)
 
-	return &Storage{db, rdOpts, wrOpts, handles, kDefaultPathDB, cfNames, cfOpts}
+	return &Store{db, rdOpts, wrOpts, handles, kDefaultPathDB, cfNames, cfOpts}
 }
 
-func (store *Storage) Interator(cf int) *gorocksdb.Iterator {
-	return store.db.NewIteratorCF(store.rdOpts, store.handles[cf])
-}
 
-func (store *Storage) Get(cf int, key []byte) []byte {
+func (store *Store) Get(cf int, key []byte) []byte {
 	data, err := store.db.GetCF(store.rdOpts, store.handles[cf], key)
-	checkError(err)
+	utils.CheckError(err)
 	return data.Data()
 }
 
-func (store *Storage) Put(cf int, key []byte, value []byte) {
+func (store *Store) Put(cf int, key []byte, value []byte) {
 	err := store.db.PutCF(store.wrOpts, store.handles[cf], key, value)
-	checkError(err)
+	utils.CheckError(err)
 }
 
-func (store *Storage) Delete(cf int, key []byte) {
+func (store *Store) Delete(cf int, key []byte) {
 	err := store.db.DeleteCF(store.wrOpts, store.handles[cf], key)
-	checkError(err)
+	utils.CheckError(err)
 }
 
-func (store *Storage) Destroy() {
+func (store *Store) Destroy() {
 	var err error
 	// drop column family
 	for i := 1; i < len(store.handles); i++ {
 		err = store.db.DropColumnFamily(store.handles[i])
-		checkError(err)
+		utils.CheckError(err)
 	}
 	// close db
 	for i := 0; i < len(store.handles); i++ {
@@ -92,8 +89,3 @@ func (store *Storage) Destroy() {
 	store.db.Close()
 }
 
-func checkError(err error) {
-	if err != nil {
-		log.Fatal(err)
-	}
-}

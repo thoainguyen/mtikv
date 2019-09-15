@@ -1,21 +1,18 @@
 package db
 
 import (
-	"bytes"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/tecbot/gorocksdb"
 )
 
 type DB struct {
 	path      string
-	snapPath  string
 	database  *gorocksdb.DB
 	readOpts  *gorocksdb.ReadOptions
 	writeOpts *gorocksdb.WriteOptions
 }
 
-func CreateDB(path, snapPath string) (*DB, error) {
+func CreateDB(path string) (*DB, error) {
 	bbto := gorocksdb.NewDefaultBlockBasedTableOptions()
 	bbto.SetBlockCache(gorocksdb.NewLRUCache(3 << 30))
 	opts := gorocksdb.NewDefaultOptions()
@@ -28,7 +25,7 @@ func CreateDB(path, snapPath string) (*DB, error) {
 	}
 
 	return &DB{
-		path, snapPath, db,
+		path, db,
 		gorocksdb.NewDefaultReadOptions(),
 		gorocksdb.NewDefaultWriteOptions(),
 	}, nil
@@ -51,55 +48,6 @@ func (db *DB) DeleteData(key string) error {
 	return db.database.Delete(db.writeOpts, []byte(key))
 }
 
-func (db *DB) Traverse(startKey []byte, fn func(key, val []byte)) error {
-	iter := db.database.NewIterator(db.readOpts)
-	defer iter.Close()
-	iter.SeekToLast()
-	if err := iter.Err(); err != nil {
-		return err
-	}
-	for ; iter.Valid(); iter.Prev() {
-		if bytes.Compare(iter.Key().Data(), startKey) < 0 {
-			fn(iter.Key().Data(), iter.Value().Data())
-		}
-	}
-
-	if err := iter.Err(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (db *DB) SaveSnapShot() string {
-	envOptions := gorocksdb.NewDefaultEnvOptions()
-	options := gorocksdb.NewDefaultOptions()
-	sstWriter := gorocksdb.NewSSTFileWriter(envOptions, options)
-	err := sstWriter.Open(db.snapPath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	it := db.database.NewIterator(db.readOpts)
-	defer it.Close()
-	for it.SeekToFirst(); it.Valid(); it.Next() {
-		sstWriter.Add(it.Key().Data(), it.Value().Data())
-	}
-	if err := it.Err(); err != nil {
-		log.Fatal(err)
-	}
-	err = sstWriter.Finish()
-	if err != nil {
-		log.Fatal(err)
-	}
-	return db.snapPath
-}
-
-func (db *DB) LoadSnapShot(filesPath string) {
-	opts := gorocksdb.NewDefaultIngestExternalFileOptions()
-	err := db.database.IngestExternalFile([]string{filesPath}, opts)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
 
 func (db *DB) CloseDB() error {
 	db.database.Close()

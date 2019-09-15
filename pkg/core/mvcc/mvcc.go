@@ -3,10 +3,8 @@ package mvcc
 import (
 	"bytes"
 	"errors"
-	"log"
-
-	"github.com/gogo/protobuf/proto"
-	"github.com/thoainguyen/mtikv/pkg/core/db"
+	"github.com/thoainguyen/mtikv/pkg/core/store"
+	"github.com/thoainguyen/mtikv/pkg/core/utils"
 	pb "github.com/thoainguyen/mtikv/pkg/pb/mtikvpb"
 )
 
@@ -17,8 +15,15 @@ const (
 	CF_INFO
 )
 
+type Storage interface {
+	Get(cf int, key []byte) []byte
+	Put(cf int, key, value []byte)
+	Delete(cf int, key []byte)
+	Destroy()
+}
+
 type Mvcc struct {
-	store          *db.Storage
+	store          Storage
 	kDefaultPathDB string
 }
 
@@ -28,13 +33,13 @@ var (
 	ErrorLockNotFound  = errors.New("ErrorLockNotFound")
 )
 
-func (m *Mvcc) GetStore() *db.Storage {
+func (m *Mvcc) GetStore() Storage {
 	return m.store
 }
 
 func CreateMvcc(path string) *Mvcc {
 	return &Mvcc{
-		store:          db.CreateStorage(path),
+		store:          store.CreateStore(path),
 		kDefaultPathDB: path,
 	}
 }
@@ -43,20 +48,7 @@ func (m *Mvcc) Destroy() {
 	m.store.Destroy()
 }
 
-func (m *Mvcc) Marshal(pb proto.Message) []byte {
-	data, err := proto.Marshal(pb)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return data
-}
 
-func (m *Mvcc) Unmarshal(buf []byte, pb proto.Message) {
-	err := proto.Unmarshal(buf, pb)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
 
 // prewrite(start_ts, data_list)
 func (m *Mvcc) Prewrite(mutations []pb.Mutation, start_ts uint64, primary_key []byte) (keyIsLockedErrors []error, err error) {
@@ -73,7 +65,7 @@ func (m *Mvcc) Prewrite(mutations []pb.Mutation, start_ts uint64, primary_key []
 
 		if len(result) != 0 {
 			info := &pb.MvccObject{}
-			m.Unmarshal(result, info)
+			utils.Unmarshal(result, info)
 
 			// if commit_ts >= start_ts => return Error WriteConflict
 			if info.GetLatestCommit() >= start_ts {
@@ -86,7 +78,7 @@ func (m *Mvcc) Prewrite(mutations []pb.Mutation, start_ts uint64, primary_key []
 		// if lock exist
 		if len(result) != 0 {
 			lock := &pb.MvccObject{}
-			m.Unmarshal(result, lock)
+			utils.Unmarshal(result, lock)
 
 			// if lock_ts != start_ts => add one KeyIsLocked Error
 			if lock.GetStartTs() != start_ts {
@@ -95,7 +87,7 @@ func (m *Mvcc) Prewrite(mutations []pb.Mutation, start_ts uint64, primary_key []
 		} else {
 
 			cf_data = append(cf_data, pb.KeyValue{
-				Key: m.Marshal(
+				Key: utils.Marshal(
 					&pb.MvccObject{
 						Key:     mutation.Key,
 						StartTs: start_ts,
@@ -106,7 +98,7 @@ func (m *Mvcc) Prewrite(mutations []pb.Mutation, start_ts uint64, primary_key []
 
 			cf_lock = append(cf_lock, pb.KeyValue{
 				Key: mutation.Key,
-				Value: m.Marshal(
+				Value: utils.Marshal(
 					&pb.MvccObject{
 						Op:         mutation.Op,
 						PrimaryKey: primary_key,
@@ -146,20 +138,20 @@ func (m *Mvcc) Commit(start_ts, commit_ts uint64, mutations []pb.Mutation) error
 		result = m.store.Get(CF_LOCK, mutation.Key)
 		if len(result) != 0 { // if lock exist
 			lock := &pb.MvccObject{}
-			m.Unmarshal(result, lock)
+			utils.Unmarshal(result, lock)
 
 			// if lock_ts == start_ts
 			if lock.GetStartTs() == start_ts {
 
 				// write memory:set write(commit_ts, lock_type, start_ts)
 				cf_write = append(cf_write, pb.KeyValue{
-					Key: m.Marshal(
+					Key: utils.Marshal(
 						&pb.MvccObject{
 							Key:      mutation.Key,
 							CommitTs: commit_ts,
 						},
 					),
-					Value: m.Marshal(
+					Value: utils.Marshal(
 						&pb.MvccObject{
 							Op:      mutation.Op,
 							StartTs: start_ts,
@@ -170,7 +162,7 @@ func (m *Mvcc) Commit(start_ts, commit_ts uint64, mutations []pb.Mutation) error
 				// write memory: current lock(key) will be removed and latest commit_ts will be recorded in cf_info
 				cf_lock = append(cf_lock, pb.KeyValue{
 					Key: mutation.Key,
-					Value: m.Marshal(
+					Value: utils.Marshal(
 						&pb.MvccObject{
 							LatestCommit: commit_ts,
 						},
@@ -179,11 +171,11 @@ func (m *Mvcc) Commit(start_ts, commit_ts uint64, mutations []pb.Mutation) error
 			}
 		} else { // lock not exist or txn dismatch
 			// get(key, start_ts) from write
-			result = m.store.Get(CF_WRITE, m.Marshal(&pb.MvccObject{Key: mutation.Key, CommitTs: commit_ts}))
+			result = m.store.Get(CF_WRITE, utils.Marshal(&pb.MvccObject{Key: mutation.Key, CommitTs: commit_ts}))
 			if len(result) != 0 { // if write exist
 
 				write := &pb.MvccObject{}
-				m.Unmarshal(result, write)
+				utils.Unmarshal(result, write)
 
 				if write.GetOp() != pb.Op_RBACK { // case 'P', 'D', 'L'
 					// the txn is already committed
@@ -217,13 +209,13 @@ func (m *Mvcc) Get(start_ts uint64, key []byte) ([]byte, error) {
 
 	for counter >= 0 {
 		// TODO : check lock error
-		keyGet = m.Marshal(&pb.MvccObject{Key: key, CommitTs: counter})
+		keyGet = utils.Marshal(&pb.MvccObject{Key: key, CommitTs: counter})
 		valueGet = m.store.Get(CF_WRITE, keyGet)
 		if bytes.Compare(valueGet, []byte(nil)) == 0 {
 			counter -= 1
 			continue
 		}
-		m.Unmarshal(valueGet, write)
+		utils.Unmarshal(valueGet, write)
 		if write.GetOp() == pb.Op_DEL {
 			return nil, nil
 		}
@@ -231,13 +223,7 @@ func (m *Mvcc) Get(start_ts uint64, key []byte) ([]byte, error) {
 			counter -= 1
 			continue
 		}
-		return m.store.Get(CF_DATA, m.Marshal(&pb.MvccObject{Key: key, StartTs: write.GetStartTs()})), nil
+		return m.store.Get(CF_DATA, utils.Marshal(&pb.MvccObject{Key: key, StartTs: write.GetStartTs()})), nil
 	}
 	return nil, nil
-}
-
-func checkError(err error) {
-	if err != nil {
-		log.Fatal(err)
-	}
 }

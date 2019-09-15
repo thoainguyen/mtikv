@@ -1,4 +1,4 @@
-package db
+package store
 
 import (
 	"bytes"
@@ -6,8 +6,8 @@ import (
 	"testing"
 )
 
-func TestStorage(t *testing.T) {
-	s := CreateStorage("volumes")
+func TestStore(t *testing.T) {
+	s := CreateStore("volumes")
 	for i := 0; i < 20; i += 4 {
 		for j := 0; j < 4; j++ {
 			s.Put(j, []byte(fmt.Sprintf("key-%d", i+j)), []byte(fmt.Sprintf("value-%d", i+j)))

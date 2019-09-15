@@ -2,18 +2,18 @@ package service
 
 import (
 	"context"
+	"github.com/thoainguyen/mtikv/pkg/core/raftstore/raft"
 
-	raftapi "github.com/thoainguyen/mtikv/pkg/core/raft"
 	pb "github.com/thoainguyen/mtikv/pkg/pb/raftkvpb"
 
 	log "github.com/sirupsen/logrus"
 )
 
 type RaftService struct {
-	raftLayer *raftapi.RaftLayer
+	raftLayer *raft.RaftLayer
 }
 
-func NewRaftService(raftLayer *raftapi.RaftLayer) pb.RaftServiceServer {
+func NewRaftService(raftLayer *raft.RaftLayer) pb.RaftServiceServer {
 	return &RaftService{raftLayer: raftLayer}
 }
 
