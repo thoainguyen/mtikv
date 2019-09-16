@@ -1,7 +1,5 @@
 package mvcc
 
-// close of closed channel
-
 import (
 	"bytes"
 	"log"
@@ -13,6 +11,7 @@ import (
 	"go.etcd.io/etcd/raft/raftpb"
 )
 
+// TODO: error run all testcase: close of closed channel
 func TestPrewrite(t *testing.T) {
 
 	proposeC := make(chan []byte)

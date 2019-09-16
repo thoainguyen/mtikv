@@ -8,7 +8,6 @@ import (
 	"github.com/thoainguyen/mtikv/pkg/core/store"
 	"github.com/thoainguyen/mtikv/pkg/core/utils"
 	pb "github.com/thoainguyen/mtikv/pkg/pb/mtikvpb"
-	"github.com/thoainguyen/zps/db"
 	"go.etcd.io/etcd/raft/raftpb"
 )
 
@@ -53,7 +52,7 @@ func CreateMvcc(path string, proposeC chan []byte, confChangeC chan raftpb.ConfC
 
 func CreateMvccV1(path string) *Mvcc {
 	return &Mvcc{
-		store:          db.CreateStorage(path),
+		store:          store.CreateStore(path),
 		kDefaultPathDB: path,
 	}
 }
