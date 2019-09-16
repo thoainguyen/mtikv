@@ -1,57 +1,50 @@
 package raftstore
 
 import (
+	"log"
+	"strings"
+	"sync"
 
 	"github.com/thoainguyen/mtikv/pkg/core/store"
 	"github.com/thoainguyen/mtikv/pkg/core/utils"
 	pb "github.com/thoainguyen/mtikv/pkg/pb/mtikvpb"
 	"go.etcd.io/etcd/raft/raftpb"
-	"log"
-	"strings"
-	"sync"
 )
 
 type RaftStore struct {
-	store *store.Store
-	rnode *RaftNode
-	mu     sync.RWMutex
+	store       *store.Store
+	mu          sync.RWMutex
+	rnode       *RaftNode
 	confChangeC chan<- raftpb.ConfChange
 	proposeC    chan<- []byte
 }
 
+func CreateRaftStore(store *store.Store, proposeC chan []byte, confChangeC chan raftpb.ConfChange,
+	id int, cluster string, join bool) *RaftStore {
 
-func CreateRaftStore(store *store.Store, id *int, cluster *string, join *bool) *RaftStore {
-
-	proposeC := make(chan []byte)
-	defer close(proposeC)
-	confChangeC := make(chan raftpb.ConfChange)
-	defer close(confChangeC)
-
-	rnode, commitC, errorC := NewRaftNode(*id, strings.Split(*cluster, ","), *join, proposeC, confChangeC)
+	rn, commitC, errorC := NewRaftNode(id, strings.Split(cluster, ","), join, proposeC, confChangeC)
 
 	rs := &RaftStore{
-		store: store,
-		rnode: rnode,
+		store:       store,
+		rnode:       rn,
 		confChangeC: confChangeC,
-		proposeC: proposeC,
+		proposeC:    proposeC,
 	}
 
-	go func(rs *RaftStore, commitC <-chan *[]byte, errorC <-chan error){
+	go func(rs *RaftStore, commitC <-chan *[]byte, errorC <-chan error) {
 		for data := range commitC {
 			if data == nil {
 				continue
 			}
 			mut := &pb.Mutation{}
 			utils.Unmarshal(*data, mut)
-
 			rs.mu.Lock()
-			if mut.Op == pb.Op_PUT {
-				rs.store.Put(int(mut.Cf), mut.Key, mut.Value)
-			}
-			if mut.Op == pb.Op_DEL {
-				rs.store.Delete(int(mut.Cf), mut.Key)
-			}
 
+			if mut.Op == pb.Op_PUT {
+				rs.store.Put(int(mut.GetCf()), mut.GetKey(), mut.GetValue())
+			} else { // if mut.Op == pb.Op_DEL {
+				rs.store.Delete(int(mut.GetCf()), mut.GetKey())
+			}
 			rs.mu.Unlock()
 		}
 		if err, ok := <-errorC; ok {
@@ -68,6 +61,7 @@ func (rs *RaftStore) Get(cf int, key []byte) []byte {
 	return rs.store.Get(cf, key)
 }
 
+// write batch here ProposeC <- Put + Delete
 func (rs *RaftStore) Put(cf int, key, value []byte) {
 	rs.proposeC <- utils.Marshal(&pb.Mutation{Cf: int32(cf), Op: pb.Op_PUT, Key: key, Value: value})
 }
@@ -75,7 +69,6 @@ func (rs *RaftStore) Put(cf int, key, value []byte) {
 func (rs *RaftStore) Delete(cf int, key []byte) {
 	rs.proposeC <- utils.Marshal(&pb.Mutation{Cf: int32(cf), Op: pb.Op_DEL, Key: key})
 }
-
 
 func (rs *RaftStore) AddNode(nodeId uint64, url string) {
 	cc := raftpb.ConfChange{
@@ -94,8 +87,7 @@ func (rs *RaftStore) RemoveNode(nodeId uint64) {
 	rs.confChangeC <- cc
 }
 
-func (rs *RaftStore) Destroy(){
-	rs.store.Destroy()
+func (rs *RaftStore) Destroy() {
 	rs.rnode.stop()
+	rs.store.Destroy()
 }
-

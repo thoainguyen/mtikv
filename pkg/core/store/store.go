@@ -1,10 +1,9 @@
 package store
 
 import (
-	"github.com/thoainguyen/mtikv/pkg/core/utils"
 	"github.com/tecbot/gorocksdb"
+	"github.com/thoainguyen/mtikv/pkg/core/utils"
 )
-
 
 type Store struct {
 	db             *gorocksdb.DB
@@ -58,7 +57,6 @@ func CreateStore(path string) *Store {
 	return &Store{db, rdOpts, wrOpts, handles, kDefaultPathDB, cfNames, cfOpts}
 }
 
-
 func (store *Store) Get(cf int, key []byte) []byte {
 	data, err := store.db.GetCF(store.rdOpts, store.handles[cf], key)
 	utils.CheckError(err)
@@ -88,4 +86,3 @@ func (store *Store) Destroy() {
 	}
 	store.db.Close()
 }
-

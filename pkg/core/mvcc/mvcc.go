@@ -3,9 +3,13 @@ package mvcc
 import (
 	"bytes"
 	"errors"
+
+	"github.com/thoainguyen/mtikv/pkg/core/raftstore"
 	"github.com/thoainguyen/mtikv/pkg/core/store"
 	"github.com/thoainguyen/mtikv/pkg/core/utils"
 	pb "github.com/thoainguyen/mtikv/pkg/pb/mtikvpb"
+	"github.com/thoainguyen/zps/db"
+	"go.etcd.io/etcd/raft/raftpb"
 )
 
 const (
@@ -37,9 +41,19 @@ func (m *Mvcc) GetStore() Storage {
 	return m.store
 }
 
-func CreateMvcc(path string) *Mvcc {
+func CreateMvcc(path string, proposeC chan []byte, confChangeC chan raftpb.ConfChange, id int, cluster string, join bool) *Mvcc {
+
+	st := store.CreateStore(path)
+	sr := raftstore.CreateRaftStore(st, proposeC, confChangeC, id, cluster, join)
 	return &Mvcc{
-		store:          store.CreateStore(path),
+		store:          sr,
+		kDefaultPathDB: path,
+	}
+}
+
+func CreateMvccV1(path string) *Mvcc {
+	return &Mvcc{
+		store:          db.CreateStorage(path),
 		kDefaultPathDB: path,
 	}
 }
@@ -47,8 +61,6 @@ func CreateMvcc(path string) *Mvcc {
 func (m *Mvcc) Destroy() {
 	m.store.Destroy()
 }
-
-
 
 // prewrite(start_ts, data_list)
 func (m *Mvcc) Prewrite(mutations []pb.Mutation, start_ts uint64, primary_key []byte) (keyIsLockedErrors []error, err error) {

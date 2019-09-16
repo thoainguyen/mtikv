@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/thoainguyen/mtikv/config"
 	"go.etcd.io/etcd/etcdserver/api/rafthttp"
 	stats "go.etcd.io/etcd/etcdserver/api/v2stats"
 	"go.etcd.io/etcd/pkg/types"
@@ -29,14 +28,14 @@ type RaftNode struct {
 	commitC     chan<- *[]byte           // entries committed to log (k,v)
 	errorC      chan<- error             // errors from raftstore session
 
-	id          int      // client ID for raftstore session
-	peers       []string // raftstore peer URLs
-	join        bool     // node is joining an existing cluster
-	waldir      string   // path to WAL directory
-	lastIndex   uint64 // index of log at start
+	id        int      // client ID for raftstore session
+	peers     []string // raftstore peer URLs
+	join      bool     // node is joining an existing cluster
+	waldir    string   // path to WAL directory
+	lastIndex uint64   // index of log at start
 
-	confState     raftpb.ConfState
-	appliedIndex  uint64
+	confState    raftpb.ConfState
+	appliedIndex uint64
 
 	// raftstore backing for the commit/error channel
 	node        raft.Node
@@ -48,7 +47,6 @@ type RaftNode struct {
 	httpstopc chan struct{} // signals http server to shutdown
 	httpdonec chan struct{} // signals http server shutdown complete
 }
-
 
 // newRaftNode initiates a raftstore instance and returns a committed log entry
 // channel and error channel. Proposals for log updates are sent over the
@@ -69,7 +67,7 @@ func NewRaftNode(id int, peers []string, join bool, proposeC <-chan []byte,
 		id:          id,
 		peers:       peers,
 		join:        join,
-		waldir:      fmt.Sprintf("%s-%d/raftexample", config.DBPath, id),
+		waldir:      fmt.Sprintf("%s-%d/wal", "data", id),
 		stopc:       make(chan struct{}),
 		httpstopc:   make(chan struct{}),
 		httpdonec:   make(chan struct{}),
@@ -155,8 +153,6 @@ func (rc *RaftNode) publishEntries(ents []raftpb.Entry) bool {
 	}
 	return true
 }
-
-
 
 // openWAL returns a WAL ready for reading.
 func (rc *RaftNode) openWAL() *wal.WAL {
@@ -275,7 +271,6 @@ func (rc *RaftNode) stopHTTP() {
 	close(rc.httpstopc)
 	<-rc.httpdonec
 }
-
 
 func (rc *RaftNode) serveChannels() {
 	snap, err := rc.raftStorage.Snapshot()

@@ -1,15 +1,26 @@
 package mvcc
 
+// close of closed channel
+
 import (
 	"bytes"
 	"log"
 	"testing"
+	"time"
 
+	"github.com/thoainguyen/mtikv/pkg/core/utils"
 	pb "github.com/thoainguyen/mtikv/pkg/pb/mtikvpb"
+	"go.etcd.io/etcd/raft/raftpb"
 )
 
 func TestPrewrite(t *testing.T) {
-	m := CreateMvcc("volumes")
+
+	proposeC := make(chan []byte)
+	defer close(proposeC)
+	confChangeC := make(chan raftpb.ConfChange)
+	defer close(confChangeC)
+
+	m := CreateMvcc("data-1", proposeC, confChangeC, 1, "http://127.0.0.1:12379", false)
 	defer m.Destroy()
 
 	mutations := []pb.Mutation{
@@ -25,23 +36,30 @@ func TestPrewrite(t *testing.T) {
 		log.Fatal(errPrewrite)
 	}
 
-	data := m.GetStore().Get(0, m.Marshal(
+	time.Sleep(time.Second) // stop for wait data is written
+
+	data := m.GetStore().Get(0, utils.Marshal(
 		&pb.MvccObject{Key: []byte("thoainh"), StartTs: 1},
 	))
 
 	if bytes.Compare(data, []byte("Nguyen Huynh Thoai")) != 0 {
-		t.Errorf("CF_DATA isn't writen")
+		t.Errorf("CF_DATA is incorrect")
 	}
 
 	lock := m.GetStore().Get(1, []byte("thoainh"))
-	if bytes.Compare(lock, m.Marshal(&pb.MvccObject{
+	if bytes.Compare(lock, utils.Marshal(&pb.MvccObject{
 		Op: pb.Op_PUT, PrimaryKey: []byte("thoainh"), StartTs: 1})) != 0 {
-		t.Errorf("CF_LOCK isn't writen")
+		t.Errorf("CF_LOCK is incorrect")
 	}
 }
 
 func TestCommit(t *testing.T) {
-	m := CreateMvcc("volumes")
+	proposeC := make(chan []byte)
+	defer close(proposeC)
+	confChangeC := make(chan raftpb.ConfChange)
+	defer close(confChangeC)
+
+	m := CreateMvcc("data-1", proposeC, confChangeC, 1, "http://127.0.0.1:12379", false)
 	defer m.Destroy()
 
 	mutations := []pb.Mutation{
@@ -56,15 +74,19 @@ func TestCommit(t *testing.T) {
 	if errPrewrite != nil {
 		log.Fatal(errPrewrite)
 	}
+
+	time.Sleep(time.Second) // stop for wait data is written
 
 	errCommit := m.Commit(1, 2, mutations)
 	if errCommit != nil {
 		log.Fatal(errCommit)
 	}
 
-	write := m.GetStore().Get(CF_WRITE, m.Marshal(&pb.MvccObject{Key: []byte("thoainh"), CommitTs: 2}))
+	time.Sleep(time.Second) // stop for wait data is written
 
-	if bytes.Compare(write, m.Marshal(&pb.MvccObject{Op: pb.Op_PUT, StartTs: 1})) != 0 {
+	write := m.GetStore().Get(CF_WRITE, utils.Marshal(&pb.MvccObject{Key: []byte("thoainh"), CommitTs: 2}))
+
+	if bytes.Compare(write, utils.Marshal(&pb.MvccObject{Op: pb.Op_PUT, StartTs: 1})) != 0 {
 		t.Errorf("CF_WRITE isn't writen")
 	}
 
@@ -75,13 +97,19 @@ func TestCommit(t *testing.T) {
 
 	info := m.GetStore().Get(CF_INFO, []byte("thoainh"))
 
-	if bytes.Compare(info, m.Marshal(&pb.MvccObject{LatestCommit: 2})) != 0 {
+	if bytes.Compare(info, utils.Marshal(&pb.MvccObject{LatestCommit: 2})) != 0 {
 		t.Errorf("Latest commit in CF_INFO isn't correct")
 	}
+
 }
 
 func TestGet(t *testing.T) {
-	m := CreateMvcc("volumes")
+	proposeC := make(chan []byte)
+	defer close(proposeC)
+	confChangeC := make(chan raftpb.ConfChange)
+	defer close(confChangeC)
+
+	m := CreateMvcc("data-1", proposeC, confChangeC, 1, "http://127.0.0.1:12379", false)
 	defer m.Destroy()
 
 	mutations := []pb.Mutation{
@@ -102,10 +130,14 @@ func TestGet(t *testing.T) {
 		log.Fatal(errPrewrite)
 	}
 
+	time.Sleep(time.Second) // stop for wait data is written
+
 	errCommit := m.Commit(1, 2, mutations)
 	if errCommit != nil {
 		log.Fatal(errCommit)
 	}
+
+	time.Sleep(time.Second) // stop for wait data is written
 
 	value, errGet := m.Get(CF_INFO, []byte("thoainh"))
 	if errGet != nil {

@@ -2,9 +2,9 @@
 package raftstore
 
 import (
-"errors"
-"net"
-"time"
+	"errors"
+	"net"
+	"time"
 )
 
 // stoppableListener sets TCP keep-alive timeouts on accepted
