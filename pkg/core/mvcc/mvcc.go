@@ -3,6 +3,7 @@ package mvcc
 import (
 	"bytes"
 	"errors"
+	"fmt"
 
 	"github.com/thoainguyen/mtikv/pkg/core/raftstore"
 	"github.com/thoainguyen/mtikv/pkg/core/store"
@@ -41,6 +42,8 @@ func (m *Mvcc) GetStore() Storage {
 }
 
 func CreateMvcc(path string, proposeC chan []byte, confChangeC chan raftpb.ConfChange, id int, cluster string, join bool) *Mvcc {
+
+	path = fmt.Sprintf("%s-%02d", path, id)
 
 	st := store.CreateStore(path)
 	sr := raftstore.CreateRaftStore(st, proposeC, confChangeC, id, cluster, join)

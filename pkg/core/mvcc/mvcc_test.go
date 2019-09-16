@@ -12,14 +12,14 @@ import (
 )
 
 // TODO: error run all testcase: close of closed channel
-func TestPrewrite(t *testing.T) {
 
+func TestPrewrite(t *testing.T) {
 	proposeC := make(chan []byte)
 	defer close(proposeC)
 	confChangeC := make(chan raftpb.ConfChange)
 	defer close(confChangeC)
 
-	m := CreateMvcc("data-1", proposeC, confChangeC, 1, "http://127.0.0.1:12379", false)
+	m := CreateMvcc("mtikv", proposeC, confChangeC, 1, "http://127.0.0.1:12379", false)
 	defer m.Destroy()
 
 	mutations := []pb.Mutation{
@@ -35,7 +35,8 @@ func TestPrewrite(t *testing.T) {
 		log.Fatal(errPrewrite)
 	}
 
-	time.Sleep(time.Second) // stop for wait data is written
+	// wait for a moment for processing message, otherwise get would be failed.
+	<-time.After(time.Second)
 
 	data := m.GetStore().Get(0, utils.Marshal(
 		&pb.MvccObject{Key: []byte("thoainh"), StartTs: 1},
@@ -58,7 +59,7 @@ func TestCommit(t *testing.T) {
 	confChangeC := make(chan raftpb.ConfChange)
 	defer close(confChangeC)
 
-	m := CreateMvcc("data-1", proposeC, confChangeC, 1, "http://127.0.0.1:12379", false)
+	m := CreateMvcc("mtikv", proposeC, confChangeC, 1, "http://127.0.0.1:12379", false)
 	defer m.Destroy()
 
 	mutations := []pb.Mutation{
@@ -74,14 +75,16 @@ func TestCommit(t *testing.T) {
 		log.Fatal(errPrewrite)
 	}
 
-	time.Sleep(time.Second) // stop for wait data is written
+	// wait for a moment for processing message, otherwise get would be failed.
+	<-time.After(time.Second)
 
 	errCommit := m.Commit(1, 2, mutations)
 	if errCommit != nil {
 		log.Fatal(errCommit)
 	}
 
-	time.Sleep(time.Second) // stop for wait data is written
+	// wait for a moment for processing message, otherwise get would be failed.
+	<-time.After(time.Second)
 
 	write := m.GetStore().Get(CF_WRITE, utils.Marshal(&pb.MvccObject{Key: []byte("thoainh"), CommitTs: 2}))
 
@@ -108,7 +111,7 @@ func TestGet(t *testing.T) {
 	confChangeC := make(chan raftpb.ConfChange)
 	defer close(confChangeC)
 
-	m := CreateMvcc("data-1", proposeC, confChangeC, 1, "http://127.0.0.1:12379", false)
+	m := CreateMvcc("mtikv", proposeC, confChangeC, 1, "http://127.0.0.1:12379", false)
 	defer m.Destroy()
 
 	mutations := []pb.Mutation{
@@ -129,14 +132,16 @@ func TestGet(t *testing.T) {
 		log.Fatal(errPrewrite)
 	}
 
-	time.Sleep(time.Second) // stop for wait data is written
+	// wait for a moment for processing message, otherwise get would be failed.
+	<-time.After(time.Second)
 
 	errCommit := m.Commit(1, 2, mutations)
 	if errCommit != nil {
 		log.Fatal(errCommit)
 	}
 
-	time.Sleep(time.Second) // stop for wait data is written
+	// wait for a moment for processing message, otherwise get would be failed.
+	<-time.After(time.Second)
 
 	value, errGet := m.Get(CF_INFO, []byte("thoainh"))
 	if errGet != nil {
