@@ -11,15 +11,13 @@ import (
 	"go.etcd.io/etcd/raft/raftpb"
 )
 
-// TODO: error run all testcase: close of closed channel
-
 func TestPrewrite(t *testing.T) {
 	proposeC := make(chan []byte)
 	defer close(proposeC)
 	confChangeC := make(chan raftpb.ConfChange)
 	defer close(confChangeC)
 
-	m := CreateMvcc("mtikv", proposeC, confChangeC, 1, "http://127.0.0.1:12379", false)
+	m := CreateMvcc("zps", proposeC, confChangeC, 1, "http://127.0.0.1:12379", false)
 	defer m.Destroy()
 
 	mutations := []pb.Mutation{
@@ -59,7 +57,7 @@ func TestCommit(t *testing.T) {
 	confChangeC := make(chan raftpb.ConfChange)
 	defer close(confChangeC)
 
-	m := CreateMvcc("mtikv", proposeC, confChangeC, 1, "http://127.0.0.1:12379", false)
+	m := CreateMvcc("zps", proposeC, confChangeC, 1, "http://127.0.0.1:12389", false)
 	defer m.Destroy()
 
 	mutations := []pb.Mutation{
@@ -111,7 +109,7 @@ func TestGet(t *testing.T) {
 	confChangeC := make(chan raftpb.ConfChange)
 	defer close(confChangeC)
 
-	m := CreateMvcc("mtikv", proposeC, confChangeC, 1, "http://127.0.0.1:12379", false)
+	m := CreateMvcc("zps", proposeC, confChangeC, 1, "http://127.0.0.1:12399", false)
 	defer m.Destroy()
 
 	mutations := []pb.Mutation{

@@ -1,4 +1,3 @@
-
 package raftstore
 
 import (

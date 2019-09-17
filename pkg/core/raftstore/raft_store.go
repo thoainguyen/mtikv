@@ -14,7 +14,6 @@ import (
 type RaftStore struct {
 	store       *store.Store
 	mu          sync.RWMutex
-	rnode       *RaftNode
 	confChangeC chan<- raftpb.ConfChange
 	proposeC    chan<- []byte
 }
@@ -22,11 +21,10 @@ type RaftStore struct {
 func CreateRaftStore(store *store.Store, proposeC chan []byte, confChangeC chan raftpb.ConfChange,
 	id int, cluster string, join bool) *RaftStore {
 
-	rn, commitC, errorC := NewRaftNode(id, strings.Split(cluster, ","), join, proposeC, confChangeC)
+	commitC, errorC := NewRaftNode(id, strings.Split(cluster, ","), join, proposeC, confChangeC, store.GetDir())
 
 	rs := &RaftStore{
 		store:       store,
-		rnode:       rn,
 		confChangeC: confChangeC,
 		proposeC:    proposeC,
 	}
@@ -88,6 +86,5 @@ func (rs *RaftStore) RemoveNode(nodeId uint64) {
 }
 
 func (rs *RaftStore) Destroy() {
-	rs.rnode.stop()
 	rs.store.Destroy()
 }

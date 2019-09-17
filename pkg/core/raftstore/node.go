@@ -54,7 +54,7 @@ type RaftNode struct {
 // commit channel, followed by a nil message (to indicate the channel is
 // current), then new log entries. To shutdown, close proposeC and read errorC.
 func NewRaftNode(id int, peers []string, join bool, proposeC <-chan []byte,
-	confChangeC <-chan raftpb.ConfChange) (*RaftNode, <-chan *[]byte, <-chan error) {
+	confChangeC <-chan raftpb.ConfChange, waldir string) (<-chan *[]byte, <-chan error) {
 
 	commitC := make(chan *[]byte)
 	errorC := make(chan error)
@@ -67,14 +67,14 @@ func NewRaftNode(id int, peers []string, join bool, proposeC <-chan []byte,
 		id:          id,
 		peers:       peers,
 		join:        join,
-		waldir:      fmt.Sprintf("%s-%d/wal", "data", id),
+		waldir:      fmt.Sprintf("%s/wal", waldir),
 		stopc:       make(chan struct{}),
 		httpstopc:   make(chan struct{}),
 		httpdonec:   make(chan struct{}),
 		// rest of structure populated after WAL replay
 	}
 	go rc.startRaft()
-	return rc, commitC, errorC
+	return commitC, errorC
 }
 
 func (rc *RaftNode) saveSnap(snap raftpb.Snapshot) error {
@@ -268,8 +268,8 @@ func (rc *RaftNode) stop() {
 
 func (rc *RaftNode) stopHTTP() {
 	rc.transport.Stop()
-	close(rc.httpstopc)
-	<-rc.httpdonec
+	// close(rc.httpstopc)
+	// <-rc.httpdonec
 }
 
 func (rc *RaftNode) serveChannels() {
@@ -357,6 +357,7 @@ func (rc *RaftNode) serveRaft() {
 	}
 
 	err = (&http.Server{Handler: rc.transport.Handler()}).Serve(ln)
+
 	select {
 	case <-rc.httpstopc:
 	default:

@@ -57,6 +57,10 @@ func CreateStore(path string) *Store {
 	return &Store{db, rdOpts, wrOpts, handles, kDefaultPathDB, cfNames, cfOpts}
 }
 
+func (store *Store) GetDir() string {
+	return store.kDefaultPathDB
+}
+
 func (store *Store) Get(cf int, key []byte) []byte {
 	data, err := store.db.GetCF(store.rdOpts, store.handles[cf], key)
 	utils.CheckError(err)
