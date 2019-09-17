@@ -3,6 +3,7 @@ package store
 import (
 	"github.com/tecbot/gorocksdb"
 	"github.com/thoainguyen/mtikv/pkg/core/utils"
+	pb "github.com/thoainguyen/mtikv/pkg/pb/mtikvpb"
 )
 
 type Store struct {
@@ -74,6 +75,66 @@ func (store *Store) Put(cf int, key []byte, value []byte) {
 
 func (store *Store) Delete(cf int, key []byte) {
 	err := store.db.DeleteCF(store.wrOpts, store.handles[cf], key)
+	utils.CheckError(err)
+}
+
+func (store *Store) PrewriteBatch(mut *pb.MvccObject) {
+	batch := gorocksdb.NewWriteBatch()
+	batch.PutCF(
+		store.handles[0],
+		utils.Marshal(&pb.MvccObject{
+			Key:     mut.GetKey(),
+			StartTs: mut.GetStartTs(),
+		}), 
+		utils.Marshal(&pb.MvccObject{
+			Value: mut.GetValue(),
+		}),
+	)
+	batch.PutCF(
+		store.handles[1],
+		utils.Marshal(&pb.MvccObject{
+			Key: mut.GetKey(),
+		}),
+		utils.Marshal(&pb.MvccObject{
+			Op:         mut.GetOp(),
+			PrimaryKey: mut.GetPrimaryKey(),
+			StartTs:    mut.GetStartTs(),
+		}),
+	)
+	err := store.db.Write(store.wrOpts, batch)
+	utils.CheckError(err)
+}
+
+func (store *Store) CommitBatch(mut *pb.MvccObject) {
+
+	batch := gorocksdb.NewWriteBatch()
+	batch.PutCF(
+		store.handles[2],
+		utils.Marshal(&pb.MvccObject{
+			Key:      mut.GetKey(),
+			CommitTs: mut.GetCommitTs(),
+		}),
+		utils.Marshal(&pb.MvccObject{
+			Op:      mut.GetOp(),
+			StartTs: mut.GetStartTs(),
+		}),
+	)
+	batch.DeleteCF(
+		store.handles[1],
+		utils.Marshal(&pb.MvccObject{
+			Key: mut.GetKey(),
+		}),
+	)
+	batch.PutCF(
+		store.handles[3],
+		utils.Marshal(&pb.MvccObject{
+			Key: mut.GetKey(),
+		}),
+		utils.Marshal(&pb.MvccObject{
+			LatestCommit: mut.GetCommitTs(),
+		}),
+	)
+	err := store.db.Write(store.wrOpts, batch)
 	utils.CheckError(err)
 }
 

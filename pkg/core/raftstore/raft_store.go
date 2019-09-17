@@ -34,14 +34,14 @@ func CreateRaftStore(store *store.Store, proposeC chan []byte, confChangeC chan 
 			if data == nil {
 				continue
 			}
-			mut := &pb.Mutation{}
+			mut := &pb.MvccObject{}
 			utils.Unmarshal(*data, mut)
 			rs.mu.Lock()
 
-			if mut.Op == pb.Op_PUT {
-				rs.store.Put(int(mut.GetCf()), mut.GetKey(), mut.GetValue())
-			} else { // if mut.Op == pb.Op_DEL {
-				rs.store.Delete(int(mut.GetCf()), mut.GetKey())
+			if mut.MvccOp == pb.MvccOp_PRWITE {
+				rs.store.PrewriteBatch(mut)
+			} else if mut.MvccOp == pb.MvccOp_COMMIT {
+				rs.store.CommitBatch(mut)
 			}
 			rs.mu.Unlock()
 		}
@@ -61,11 +61,21 @@ func (rs *RaftStore) Get(cf int, key []byte) []byte {
 
 // write batch here ProposeC <- Put + Delete
 func (rs *RaftStore) Put(cf int, key, value []byte) {
-	rs.proposeC <- utils.Marshal(&pb.Mutation{Cf: int32(cf), Op: pb.Op_PUT, Key: key, Value: value})
+	rs.proposeC <- utils.Marshal(&pb.MvccObject{Cf: int32(cf), Op: pb.Op_PUT, Key: key, Value: value})
+}
+
+func (rs *RaftStore) PrewriteBatch(data *pb.MvccObject) {
+	data.MvccOp = pb.MvccOp_PRWITE
+	rs.proposeC <- utils.Marshal(data)
+}
+
+func (rs *RaftStore) CommitBatch(data *pb.MvccObject) {
+	data.MvccOp = pb.MvccOp_COMMIT
+	rs.proposeC <- utils.Marshal(data)
 }
 
 func (rs *RaftStore) Delete(cf int, key []byte) {
-	rs.proposeC <- utils.Marshal(&pb.Mutation{Cf: int32(cf), Op: pb.Op_DEL, Key: key})
+	rs.proposeC <- utils.Marshal(&pb.MvccObject{Cf: int32(cf), Op: pb.Op_DEL, Key: key})
 }
 
 func (rs *RaftStore) AddNode(nodeId uint64, url string) {

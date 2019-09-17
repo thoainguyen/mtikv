@@ -268,8 +268,8 @@ func (rc *RaftNode) stop() {
 
 func (rc *RaftNode) stopHTTP() {
 	rc.transport.Stop()
-	// close(rc.httpstopc)
-	// <-rc.httpdonec
+	close(rc.httpstopc)
+	<-rc.httpdonec
 }
 
 func (rc *RaftNode) serveChannels() {
@@ -296,7 +296,7 @@ func (rc *RaftNode) serveChannels() {
 					rc.proposeC = nil
 				} else {
 					// blocks until accepted by raftstore state machine
-					rc.node.Propose(context.TODO(), []byte(prop))
+					rc.node.Propose(context.TODO(), prop)
 				}
 
 			case cc, ok := <-rc.confChangeC:

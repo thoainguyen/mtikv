@@ -1,7 +1,6 @@
 package mvcc
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 
@@ -23,6 +22,8 @@ type Storage interface {
 	Get(cf int, key []byte) []byte
 	Put(cf int, key, value []byte)
 	Delete(cf int, key []byte)
+	PrewriteBatch(data *pb.MvccObject)
+	CommitBatch(data *pb.MvccObject)
 	Destroy()
 }
 
@@ -65,17 +66,16 @@ func (m *Mvcc) Destroy() {
 }
 
 // prewrite(start_ts, data_list)
-func (m *Mvcc) Prewrite(mutations []pb.Mutation, start_ts uint64, primary_key []byte) (keyIsLockedErrors []error, err error) {
+func (m *Mvcc) Prewrite(mutations []*pb.MvccObject, start_ts uint64, primary_key []byte) (keyIsLockedErrors []error, err error) {
 	var (
-		result  []byte
-		cf_data []pb.KeyValue
-		cf_lock []pb.KeyValue
+		result       []byte
+		prewriteList = mutations[:0]
 	)
 
 	// for keys in data_list, prewrite each key with start_ts in memory
 	for _, mutation := range mutations {
 		// get key's latest commit info write column with max_i64
-		result = m.store.Get(CF_INFO, mutation.Key)
+		result = m.store.Get(CF_INFO, utils.Marshal(&pb.MvccObject{Key: mutation.GetKey()}))
 
 		if len(result) != 0 {
 			info := &pb.MvccObject{}
@@ -88,7 +88,7 @@ func (m *Mvcc) Prewrite(mutations []pb.Mutation, start_ts uint64, primary_key []
 			}
 		}
 		// get key's lock info
-		result = m.store.Get(CF_LOCK, mutation.Key)
+		result = m.store.Get(CF_LOCK, utils.Marshal(&pb.MvccObject{Key: mutation.GetKey()}))
 		// if lock exist
 		if len(result) != 0 {
 			lock := &pb.MvccObject{}
@@ -99,27 +99,8 @@ func (m *Mvcc) Prewrite(mutations []pb.Mutation, start_ts uint64, primary_key []
 				keyIsLockedErrors = append(keyIsLockedErrors, ErrorKeyIsLocked)
 			}
 		} else {
-
-			cf_data = append(cf_data, pb.KeyValue{
-				Key: utils.Marshal(
-					&pb.MvccObject{
-						Key:     mutation.Key,
-						StartTs: start_ts,
-					},
-				),
-				Value: mutation.Value,
-			})
-
-			cf_lock = append(cf_lock, pb.KeyValue{
-				Key: mutation.Key,
-				Value: utils.Marshal(
-					&pb.MvccObject{
-						Op:         mutation.Op,
-						PrimaryKey: primary_key,
-						StartTs:    start_ts,
-					},
-				),
-			})
+			// TODO:...write in buffer
+			prewriteList = append(prewriteList, mutation)
 		}
 	}
 	// if KeyIsLocked exist => return slice KeyIsLocked Error
@@ -127,61 +108,33 @@ func (m *Mvcc) Prewrite(mutations []pb.Mutation, start_ts uint64, primary_key []
 		err = ErrorKeyIsLocked
 		return
 	} else { // commit change, write into rocksdb column family
-		for _, pair := range cf_data { // loop: write in cf_data
-			m.store.Put(CF_DATA, pair.Key, pair.Value)
-		}
-		for _, pair := range cf_lock { // loop: write in cf_lock
-			m.store.Put(CF_LOCK, pair.Key, pair.Value)
+		for _, mutation := range prewriteList {
+			m.store.PrewriteBatch(mutation)
 		}
 	}
 	return
 }
 
 // commit(keys, start_ts, commit_ts)
-func (m *Mvcc) Commit(start_ts, commit_ts uint64, mutations []pb.Mutation) error {
+func (m *Mvcc) Commit(start_ts, commit_ts uint64, mutations []*pb.MvccObject) error {
 	var (
-		result   []byte
-		cf_lock  []pb.KeyValue
-		cf_write []pb.KeyValue
+		result     []byte
+		commitList = mutations[:0]
 	)
 
 	// for each key in keys, do commit
 	for _, mutation := range mutations {
 
 		// get key's lock
-		result = m.store.Get(CF_LOCK, mutation.Key)
+		result = m.store.Get(CF_LOCK, utils.Marshal(&pb.MvccObject{Key: mutation.GetKey()}))
 		if len(result) != 0 { // if lock exist
 			lock := &pb.MvccObject{}
 			utils.Unmarshal(result, lock)
 
 			// if lock_ts == start_ts
 			if lock.GetStartTs() == start_ts {
-
-				// write memory:set write(commit_ts, lock_type, start_ts)
-				cf_write = append(cf_write, pb.KeyValue{
-					Key: utils.Marshal(
-						&pb.MvccObject{
-							Key:      mutation.Key,
-							CommitTs: commit_ts,
-						},
-					),
-					Value: utils.Marshal(
-						&pb.MvccObject{
-							Op:      mutation.Op,
-							StartTs: start_ts,
-						},
-					),
-				})
-
-				// write memory: current lock(key) will be removed and latest commit_ts will be recorded in cf_info
-				cf_lock = append(cf_lock, pb.KeyValue{
-					Key: mutation.Key,
-					Value: utils.Marshal(
-						&pb.MvccObject{
-							LatestCommit: commit_ts,
-						},
-					),
-				})
+				// TODO: ...write buffer
+				commitList = append(commitList, mutation)
 			}
 		} else { // lock not exist or txn dismatch
 			// get(key, start_ts) from write
@@ -200,15 +153,11 @@ func (m *Mvcc) Commit(start_ts, commit_ts uint64, mutations []pb.Mutation) error
 			return ErrorLockNotFound
 		}
 	}
-	// commit change
-	for _, pair := range cf_write {
-		m.store.Put(CF_WRITE, pair.Key, pair.Value)
+
+	for _, mutation := range commitList {
+		m.store.CommitBatch(mutation)
 	}
-	for _, pair := range cf_lock {
-		m.store.Delete(CF_LOCK, pair.Key)
-		// write key's latest commit
-		m.store.Put(CF_INFO, pair.Key, pair.Value)
-	}
+
 	return nil
 }
 
@@ -225,7 +174,7 @@ func (m *Mvcc) Get(start_ts uint64, key []byte) ([]byte, error) {
 		// TODO : check lock error
 		keyGet = utils.Marshal(&pb.MvccObject{Key: key, CommitTs: counter})
 		valueGet = m.store.Get(CF_WRITE, keyGet)
-		if bytes.Compare(valueGet, []byte(nil)) == 0 {
+		if len(valueGet) == 0 {
 			counter -= 1
 			continue
 		}

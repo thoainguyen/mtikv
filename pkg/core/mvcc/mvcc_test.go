@@ -17,14 +17,16 @@ func TestPrewrite(t *testing.T) {
 	confChangeC := make(chan raftpb.ConfChange)
 	defer close(confChangeC)
 
-	m := CreateMvcc("zps", proposeC, confChangeC, 1, "http://127.0.0.1:12379", false)
+	m := CreateMvcc("mtikv", proposeC, confChangeC, 1, "http://127.0.0.1:12379", false)
 	defer m.Destroy()
 
-	mutations := []pb.Mutation{
+	mutations := []*pb.MvccObject{
 		{
-			Key:   []byte("thoainh"),
-			Value: []byte("Nguyen Huynh Thoai"),
-			Op:    pb.Op_PUT,
+			Key:        []byte("thoainh"),
+			PrimaryKey: []byte("thoainh"),
+			StartTs:    1,
+			Value:      []byte("Nguyen Huynh Thoai"),
+			Op:         pb.Op_PUT,
 		},
 	}
 
@@ -34,17 +36,17 @@ func TestPrewrite(t *testing.T) {
 	}
 
 	// wait for a moment for processing message, otherwise get would be failed.
-	<-time.After(time.Second)
+	<-time.After(2 * time.Second)
 
 	data := m.GetStore().Get(0, utils.Marshal(
 		&pb.MvccObject{Key: []byte("thoainh"), StartTs: 1},
 	))
 
-	if bytes.Compare(data, []byte("Nguyen Huynh Thoai")) != 0 {
+	if bytes.Compare(data, utils.Marshal(&pb.MvccObject{Value: []byte("Nguyen Huynh Thoai")})) != 0 {
 		t.Errorf("CF_DATA is incorrect")
 	}
 
-	lock := m.GetStore().Get(1, []byte("thoainh"))
+	lock := m.GetStore().Get(1, utils.Marshal(&pb.MvccObject{Key: []byte("thoainh")}))
 	if bytes.Compare(lock, utils.Marshal(&pb.MvccObject{
 		Op: pb.Op_PUT, PrimaryKey: []byte("thoainh"), StartTs: 1})) != 0 {
 		t.Errorf("CF_LOCK is incorrect")
@@ -57,14 +59,17 @@ func TestCommit(t *testing.T) {
 	confChangeC := make(chan raftpb.ConfChange)
 	defer close(confChangeC)
 
-	m := CreateMvcc("zps", proposeC, confChangeC, 1, "http://127.0.0.1:12389", false)
+	m := CreateMvcc("mtikv", proposeC, confChangeC, 1, "http://127.0.0.1:12389", false)
 	defer m.Destroy()
 
-	mutations := []pb.Mutation{
+	mutations := []*pb.MvccObject{
 		{
-			Key:   []byte("thoainh"),
-			Value: []byte("Nguyen Huynh Thoai"),
-			Op:    pb.Op_PUT,
+			Key:        []byte("thoainh"),
+			PrimaryKey: []byte("thoainh"),
+			StartTs:    1,
+			CommitTs:   2,
+			Value:      []byte("Nguyen Huynh Thoai"),
+			Op:         pb.Op_PUT,
 		},
 	}
 
@@ -74,7 +79,7 @@ func TestCommit(t *testing.T) {
 	}
 
 	// wait for a moment for processing message, otherwise get would be failed.
-	<-time.After(time.Second)
+	<-time.After(2 * time.Second)
 
 	errCommit := m.Commit(1, 2, mutations)
 	if errCommit != nil {
@@ -82,7 +87,7 @@ func TestCommit(t *testing.T) {
 	}
 
 	// wait for a moment for processing message, otherwise get would be failed.
-	<-time.After(time.Second)
+	<-time.After(2 * time.Second)
 
 	write := m.GetStore().Get(CF_WRITE, utils.Marshal(&pb.MvccObject{Key: []byte("thoainh"), CommitTs: 2}))
 
@@ -90,12 +95,12 @@ func TestCommit(t *testing.T) {
 		t.Errorf("CF_WRITE isn't writen")
 	}
 
-	lock := m.GetStore().Get(CF_LOCK, []byte("thoainh"))
+	lock := m.GetStore().Get(CF_LOCK, utils.Marshal(&pb.MvccObject{Key: []byte("thoainh")}))
 	if bytes.Compare(lock, []byte(nil)) != 0 {
 		t.Errorf("CF_LOCK is still reserved")
 	}
 
-	info := m.GetStore().Get(CF_INFO, []byte("thoainh"))
+	info := m.GetStore().Get(CF_INFO, utils.Marshal(&pb.MvccObject{Key: []byte("thoainh")}))
 
 	if bytes.Compare(info, utils.Marshal(&pb.MvccObject{LatestCommit: 2})) != 0 {
 		t.Errorf("Latest commit in CF_INFO isn't correct")
@@ -109,19 +114,25 @@ func TestGet(t *testing.T) {
 	confChangeC := make(chan raftpb.ConfChange)
 	defer close(confChangeC)
 
-	m := CreateMvcc("zps", proposeC, confChangeC, 1, "http://127.0.0.1:12399", false)
+	m := CreateMvcc("mtikv", proposeC, confChangeC, 1, "http://127.0.0.1:12399", false)
 	defer m.Destroy()
 
-	mutations := []pb.Mutation{
+	mutations := []*pb.MvccObject{
 		{
-			Key:   []byte("thoainh"),
-			Value: []byte("Nguyen Huynh Thoai"),
-			Op:    pb.Op_PUT,
+			Key:        []byte("thoainh"),
+			PrimaryKey: []byte("thoainh"),
+			StartTs:    1,
+			CommitTs:   2,
+			Value:      []byte("Nguyen Huynh Thoai"),
+			Op:         pb.Op_PUT,
 		},
 		{
-			Key:   []byte("thuyenpt"),
-			Value: []byte("Phan Trong Thuyen"),
-			Op:    pb.Op_PUT,
+			Key:        []byte("thuyenpt"),
+			PrimaryKey: []byte("thoainh"),
+			StartTs:    1,
+			CommitTs:   2,
+			Value:      []byte("Phan Trong Thuyen"),
+			Op:         pb.Op_PUT,
 		},
 	}
 
@@ -141,12 +152,12 @@ func TestGet(t *testing.T) {
 	// wait for a moment for processing message, otherwise get would be failed.
 	<-time.After(time.Second)
 
-	value, errGet := m.Get(CF_INFO, []byte("thoainh"))
+	value, errGet := m.Get(4, []byte("thoainh"))
 	if errGet != nil {
 		log.Fatal(errGet)
 	}
 
-	if bytes.Compare(value, []byte("Nguyen Huynh Thoai")) != 0 {
+	if bytes.Compare(value, utils.Marshal(&pb.MvccObject{Value: []byte("Nguyen Huynh Thoai")})) != 0 {
 		t.Errorf("Can't get expected value")
 	}
 }
