@@ -77,6 +77,14 @@ func (store *Store) Delete(cf int, key []byte) {
 	utils.CheckError(err)
 }
 
+func (store *Store) PrewriteBatch() {
+
+}
+
+func (store *Store) CommitBatch() {
+
+}
+
 func (store *Store) Destroy() {
 	var err error
 	// drop column family

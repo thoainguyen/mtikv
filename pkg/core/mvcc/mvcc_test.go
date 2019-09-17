@@ -17,7 +17,7 @@ func TestPrewrite(t *testing.T) {
 	confChangeC := make(chan raftpb.ConfChange)
 	defer close(confChangeC)
 
-	m := CreateMvcc("zps", proposeC, confChangeC, 1, "http://127.0.0.1:12379", false)
+	m := CreateMvcc("mtikv", proposeC, confChangeC, 1, "http://127.0.0.1:12379", false)
 	defer m.Destroy()
 
 	mutations := []pb.Mutation{
@@ -57,7 +57,7 @@ func TestCommit(t *testing.T) {
 	confChangeC := make(chan raftpb.ConfChange)
 	defer close(confChangeC)
 
-	m := CreateMvcc("zps", proposeC, confChangeC, 1, "http://127.0.0.1:12389", false)
+	m := CreateMvcc("mtikv", proposeC, confChangeC, 1, "http://127.0.0.1:12389", false)
 	defer m.Destroy()
 
 	mutations := []pb.Mutation{
@@ -109,7 +109,7 @@ func TestGet(t *testing.T) {
 	confChangeC := make(chan raftpb.ConfChange)
 	defer close(confChangeC)
 
-	m := CreateMvcc("zps", proposeC, confChangeC, 1, "http://127.0.0.1:12399", false)
+	m := CreateMvcc("mtikv", proposeC, confChangeC, 1, "http://127.0.0.1:12399", false)
 	defer m.Destroy()
 
 	mutations := []pb.Mutation{

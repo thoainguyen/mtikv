@@ -19,6 +19,8 @@ message MvccObject {
     uint64 start_ts = 4;
     uint64 commit_ts = 5;
     uint64 latest_commit = 6;
+    int32 cf = 7;
+    bytes value = 8;
 }
 
 enum Error {
