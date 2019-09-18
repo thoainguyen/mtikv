@@ -40,6 +40,10 @@ enum KeyError {
     KeyIsLocked = 1;
 }
 
+message Context {
+    uint64 region_id = 1;
+}
+
 
 message KeyValue {
     bytes key = 1;
@@ -47,9 +51,10 @@ message KeyValue {
 }
 
 message PrewriteRequest {
-    repeated MvccObject objects = 1;
-    bytes primary_lock = 2;
-    uint64 start_version = 3;
+    Context context = 1;
+    repeated MvccObject objects = 2;
+    bytes primary_lock = 3;
+    uint64 start_version = 4;
 }
 
 message PrewriteReponse {
@@ -58,8 +63,9 @@ message PrewriteReponse {
 }
 
 message CommitRequest {
-    repeated bytes keys = 1;
-    uint64 commit_version = 2;
+    Context context = 1;
+    repeated bytes keys = 2;
+    uint64 commit_version = 3;
 }
 
 message CommitReponse {
@@ -68,8 +74,9 @@ message CommitReponse {
 }
 
 message GetRequest {
-    bytes key = 1; 
-    uint64 version = 2;
+    Context context = 1;
+    bytes key = 2; 
+    uint64 version = 3;
 }
 
 message GetReponse {
@@ -135,11 +142,11 @@ message RawDeleteResponse {
 
 service MTiKvService{
     
-    rpc  KvPrewrite(PrewriteRequest) returns (PrewriteReponse){}
-    rpc  KvCommit(CommitRequest) returns (CommitReponse){}
-    rpc  KvGet(GetRequest) returns (GetReponse){}
-    rpc  KvResolveLock(ResolveLockRequest) returns (ResolveLockResponse){}
-    rpc  KvGC (GCRequest) returns (GetReponse){}
+    rpc  Prewrite(PrewriteRequest) returns (PrewriteReponse){}
+    rpc  Commit(CommitRequest) returns (CommitReponse){}
+    rpc  Get(GetRequest) returns (GetReponse){}
+    rpc  ResolveLock(ResolveLockRequest) returns (ResolveLockResponse){}
+    rpc  GC (GCRequest) returns (GetReponse){}
 
     rpc  RawGet(RawGetRequest) returns (RawGetResponse){}
     rpc  RawPut(RawPutRequest) returns (RawPutResponse){}

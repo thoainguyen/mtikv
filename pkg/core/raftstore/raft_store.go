@@ -2,7 +2,6 @@ package raftstore
 
 import (
 	"log"
-	"strings"
 	"sync"
 
 	"github.com/thoainguyen/mtikv/pkg/core/store"
@@ -19,9 +18,9 @@ type RaftStore struct {
 }
 
 func CreateRaftStore(store *store.Store, proposeC chan []byte, confChangeC chan raftpb.ConfChange,
-	id int, cluster string, join bool) *RaftStore {
+	id int, cluster []string, join bool) *RaftStore {
 
-	commitC, errorC := NewRaftNode(id, strings.Split(cluster, ","), join, proposeC, confChangeC, store.GetDir())
+	commitC, errorC := NewRaftNode(id, cluster, join, proposeC, confChangeC, store.GetDir())
 
 	rs := &RaftStore{
 		store:       store,
@@ -59,11 +58,11 @@ func (rs *RaftStore) Get(cf int, key []byte) []byte {
 	return rs.store.Get(cf, key)
 }
 
-// write batch here ProposeC <- Put + Delete
 func (rs *RaftStore) Put(cf int, key, value []byte) {
 	rs.proposeC <- utils.Marshal(&pb.MvccObject{Cf: int32(cf), Op: pb.Op_PUT, Key: key, Value: value})
 }
 
+// write batch here ProposeC <- Put + Delete
 func (rs *RaftStore) PrewriteBatch(data *pb.MvccObject) {
 	data.MvccOp = pb.MvccOp_PRWITE
 	rs.proposeC <- utils.Marshal(data)

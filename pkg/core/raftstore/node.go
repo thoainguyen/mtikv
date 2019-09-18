@@ -54,7 +54,7 @@ type RaftNode struct {
 // commit channel, followed by a nil message (to indicate the channel is
 // current), then new log entries. To shutdown, close proposeC and read errorC.
 func NewRaftNode(id int, peers []string, join bool, proposeC <-chan []byte,
-	confChangeC <-chan raftpb.ConfChange, waldir string) (<-chan *[]byte, <-chan error) {
+	confChangeC <-chan raftpb.ConfChange, dbdir string) (<-chan *[]byte, <-chan error) {
 
 	commitC := make(chan *[]byte)
 	errorC := make(chan error)
@@ -67,7 +67,7 @@ func NewRaftNode(id int, peers []string, join bool, proposeC <-chan []byte,
 		id:          id,
 		peers:       peers,
 		join:        join,
-		waldir:      fmt.Sprintf("%s/wal", waldir),
+		waldir:      fmt.Sprintf("%s/wal-%02d", dbdir, id),
 		stopc:       make(chan struct{}),
 		httpstopc:   make(chan struct{}),
 		httpdonec:   make(chan struct{}),

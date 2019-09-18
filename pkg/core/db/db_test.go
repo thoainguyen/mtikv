@@ -5,7 +5,7 @@ import (
 )
 
 func TestPut(t *testing.T) {
-	db, err := CreateDB("volumes", "snap")
+	db, err := CreateDB("data")
 	if err != nil {
 		t.Error(err)
 	}
@@ -20,7 +20,7 @@ func TestPut(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-	db, err := CreateDB("volumes", "snap")
+	db, err := CreateDB("data")
 	if err != nil {
 		t.Error(err)
 	}
@@ -41,7 +41,7 @@ func TestGet(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	db, err := CreateDB("volumes", "snap")
+	db, err := CreateDB("data")
 	if err != nil {
 		t.Error(err)
 	}

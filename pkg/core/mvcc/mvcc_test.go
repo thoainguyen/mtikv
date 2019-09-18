@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thoainguyen/mtikv/pkg/core/store"
 	"github.com/thoainguyen/mtikv/pkg/core/utils"
 	pb "github.com/thoainguyen/mtikv/pkg/pb/mtikvpb"
 	"go.etcd.io/etcd/raft/raftpb"
@@ -17,8 +18,10 @@ func TestPrewrite(t *testing.T) {
 	confChangeC := make(chan raftpb.ConfChange)
 	defer close(confChangeC)
 
-	m := CreateMvcc("mtikv", proposeC, confChangeC, 1, "http://127.0.0.1:12379", false)
-	defer m.Destroy()
+	st := store.CreateStore("data")
+	defer st.Destroy()
+
+	m := CreateMvcc(st, proposeC, confChangeC, 1, []string{"http://127.0.0.1:12379"}, false)
 
 	mutations := []*pb.MvccObject{
 		{
@@ -59,8 +62,10 @@ func TestCommit(t *testing.T) {
 	confChangeC := make(chan raftpb.ConfChange)
 	defer close(confChangeC)
 
-	m := CreateMvcc("mtikv", proposeC, confChangeC, 1, "http://127.0.0.1:12389", false)
-	defer m.Destroy()
+	st := store.CreateStore("data")
+	defer st.Destroy()
+
+	m := CreateMvcc(st, proposeC, confChangeC, 1, []string{"http://127.0.0.1:12379"}, false)
 
 	mutations := []*pb.MvccObject{
 		{
@@ -87,7 +92,7 @@ func TestCommit(t *testing.T) {
 	}
 
 	// wait for a moment for processing message, otherwise get would be failed.
-	<-time.After(2 * time.Second)
+	<-time.After(1 * time.Second)
 
 	write := m.GetStore().Get(CF_WRITE, utils.Marshal(&pb.MvccObject{Key: []byte("thoainh"), CommitTs: 2}))
 
@@ -114,8 +119,10 @@ func TestGet(t *testing.T) {
 	confChangeC := make(chan raftpb.ConfChange)
 	defer close(confChangeC)
 
-	m := CreateMvcc("mtikv", proposeC, confChangeC, 1, "http://127.0.0.1:12399", false)
-	defer m.Destroy()
+	st := store.CreateStore("data")
+	defer st.Destroy()
+
+	m := CreateMvcc(st, proposeC, confChangeC, 1, []string{"http://127.0.0.1:12379"}, false)
 
 	mutations := []*pb.MvccObject{
 		{

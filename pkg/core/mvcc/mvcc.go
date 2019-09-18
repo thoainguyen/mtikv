@@ -2,7 +2,6 @@ package mvcc
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/thoainguyen/mtikv/pkg/core/raftstore"
 	"github.com/thoainguyen/mtikv/pkg/core/store"
@@ -28,8 +27,8 @@ type Storage interface {
 }
 
 type Mvcc struct {
-	store          Storage
-	kDefaultPathDB string
+	store   Storage
+	kPathDB string
 }
 
 var (
@@ -42,31 +41,27 @@ func (m *Mvcc) GetStore() Storage {
 	return m.store
 }
 
-func CreateMvcc(path string, proposeC chan []byte, confChangeC chan raftpb.ConfChange, id int, cluster string, join bool) *Mvcc {
-
-	path = fmt.Sprintf("%s-%02d", path, id)
-
-	st := store.CreateStore(path)
+func CreateMvcc(st *store.Store, proposeC chan []byte, confChangeC chan raftpb.ConfChange,
+	id int, cluster []string, join bool) *Mvcc {
 	sr := raftstore.CreateRaftStore(st, proposeC, confChangeC, id, cluster, join)
 	return &Mvcc{
-		store:          sr,
-		kDefaultPathDB: path,
+		store:   sr,
+		kPathDB: st.GetDir(),
 	}
 }
 
-func CreateMvccV1(path string) *Mvcc {
+func CreateMvccV1(st *store.Store) *Mvcc {
 	return &Mvcc{
-		store:          store.CreateStore(path),
-		kDefaultPathDB: path,
+		store:   st,
+		kPathDB: st.GetDir(),
 	}
 }
 
-func (m *Mvcc) Destroy() {
-	m.store.Destroy()
-}
+func (m *Mvcc) Destroy() {}
 
 // prewrite(start_ts, data_list)
-func (m *Mvcc) Prewrite(mutations []*pb.MvccObject, start_ts uint64, primary_key []byte) (keyIsLockedErrors []error, err error) {
+func (m *Mvcc) Prewrite(mutations []*pb.MvccObject, start_ts uint64,
+	primary_key []byte) (keyIsLockedErrors []error, err error) {
 	var (
 		result       []byte
 		prewriteList = mutations[:0]
@@ -99,7 +94,6 @@ func (m *Mvcc) Prewrite(mutations []*pb.MvccObject, start_ts uint64, primary_key
 				keyIsLockedErrors = append(keyIsLockedErrors, ErrorKeyIsLocked)
 			}
 		} else {
-			// TODO:...write in buffer
 			prewriteList = append(prewriteList, mutation)
 		}
 	}
@@ -133,7 +127,6 @@ func (m *Mvcc) Commit(start_ts, commit_ts uint64, mutations []*pb.MvccObject) er
 
 			// if lock_ts == start_ts
 			if lock.GetStartTs() == start_ts {
-				// TODO: ...write buffer
 				commitList = append(commitList, mutation)
 			}
 		} else { // lock not exist or txn dismatch
@@ -167,15 +160,15 @@ func (m *Mvcc) Get(start_ts uint64, key []byte) ([]byte, error) {
 		keyGet   []byte
 		valueGet []byte
 		write    = &pb.MvccObject{}
-		counter  = start_ts
+		version  = start_ts
 	)
 
-	for counter >= 0 {
+	for version >= 0 {
 		// TODO : check lock error
-		keyGet = utils.Marshal(&pb.MvccObject{Key: key, CommitTs: counter})
+		keyGet = utils.Marshal(&pb.MvccObject{Key: key, CommitTs: version})
 		valueGet = m.store.Get(CF_WRITE, keyGet)
 		if len(valueGet) == 0 {
-			counter -= 1
+			version -= 1
 			continue
 		}
 		utils.Unmarshal(valueGet, write)
@@ -183,7 +176,7 @@ func (m *Mvcc) Get(start_ts uint64, key []byte) ([]byte, error) {
 			return nil, nil
 		}
 		if write.GetOp() == pb.Op_RBACK {
-			counter -= 1
+			version -= 1
 			continue
 		}
 		return m.store.Get(CF_DATA, utils.Marshal(&pb.MvccObject{Key: key, StartTs: write.GetStartTs()})), nil
