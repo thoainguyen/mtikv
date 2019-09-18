@@ -18,27 +18,25 @@ import (
 	"google.golang.org/grpc"
 )
 
-type cluster struct {
-	id          []int
-	peers       []string
-	commitC     []<-chan *[]byte
-	errorC      []<-chan error
-	proposeC    []chan []byte
-	confChangeC []chan raftpb.ConfChange
+type Cluster struct {
+	Peers       []string
+	ProposeC    []chan []byte
+	ConfChangeC []chan raftpb.ConfChange
 }
 
 //RunServer run gRPC server
-func RunServer(clus *cluster, dir, port string) error {
+func RunServer(clus *Cluster, dir, port string) error {
 	ctx := context.Background()
 
 	st := store.CreateStore(dir)
+	defer st.Destroy()
 	regions := cmap.New()
 
 	var wg sync.WaitGroup
 
-	for _, i := range clus.id {
+	for i, _ := range clus.Peers {
 		wg.Add(1)
-		go createMvccStore(&regions, st, clus.proposeC[i], clus.confChangeC[i], clus.id[i], clus.peers, &wg)
+		go createMvccStore(&regions, st, clus.ProposeC[i], clus.ConfChangeC[i], i+1, clus.Peers, &wg)
 	}
 	wg.Wait()
 
@@ -54,14 +52,14 @@ func createMvccStore(regions *cmap.ConcurrentMap, st *store.Store, proposeC chan
 }
 
 //RunRaftService run gRPC service
-func RunMTiKvService(ctx context.Context, mtikvServer pb.MTiKvServiceServer, port string) error {
+func RunMTiKvService(ctx context.Context, mtikvServer pb.MTikvServer, port string) error {
 	listen, err := net.Listen("tcp", ":"+port)
 	if err != nil {
 		return err
 	}
 
 	server := grpc.NewServer()
-	pb.RegisterMTiKvServiceServer(server, mtikvServer)
+	pb.RegisterMTikvServer(server, mtikvServer)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)

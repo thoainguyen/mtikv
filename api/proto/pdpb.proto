@@ -6,19 +6,13 @@ option java_package = "mtikv";
 
 import "google/api/annotations.proto";
 
-
-
 message TsoRequest {}
 
-message TsoReponse {
+message TsoResponse {
     uint64 timestamp = 1;
 }
 
 
-service PDService{
-    rpc GetTimestamp (TsoRequest) returns (TsoReponse) {
-        option (google.api.http) = {
-            get: "/api/pd/timestamp"
-        };
-    }
+service PD{
+    rpc Tso (stream TsoRequest) returns (stream TsoResponse) {}
 }

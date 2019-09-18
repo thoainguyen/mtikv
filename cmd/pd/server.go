@@ -1,7 +1,7 @@
 package main
 
 import (
-	"context"
+	"io"
 	"log"
 	"net"
 	"sync/atomic"
@@ -16,13 +16,28 @@ const (
 
 // server is used to implement pd.PDService.
 type server struct {
-	ops uint64
+	timestamp uint64
 }
 
 // GetTimestamp implements pd.PDService.
-func (s *server) GetTimestamp(ctx context.Context, in *pb.TsoRequest) (*pb.TsoReponse, error) {
-	atomic.AddUint64(&s.ops, 1)
-	return &pb.TsoReponse{Timestamp: atomic.LoadUint64(&s.ops)}, nil
+func (s *server) Tso(stream pb.PD_TsoServer) error {
+
+	for {
+		_, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		atomic.AddUint64(&s.timestamp, 1)
+
+		note := &pb.TsoResponse{Timestamp: s.timestamp}
+
+		if err := stream.Send(note); err != nil {
+			return err
+		}
+	}
 }
 
 func main() {
@@ -31,7 +46,7 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	s := grpc.NewServer()
-	pb.RegisterPDServiceServer(s, &server{0})
+	pb.RegisterPDServer(s, &server{0})
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}

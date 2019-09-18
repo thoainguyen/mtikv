@@ -56,39 +56,39 @@ func (m *TsoRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_TsoRequest proto.InternalMessageInfo
 
-type TsoReponse struct {
+type TsoResponse struct {
 	Timestamp            uint64   `protobuf:"varint,1,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *TsoReponse) Reset()         { *m = TsoReponse{} }
-func (m *TsoReponse) String() string { return proto.CompactTextString(m) }
-func (*TsoReponse) ProtoMessage()    {}
-func (*TsoReponse) Descriptor() ([]byte, []int) {
+func (m *TsoResponse) Reset()         { *m = TsoResponse{} }
+func (m *TsoResponse) String() string { return proto.CompactTextString(m) }
+func (*TsoResponse) ProtoMessage()    {}
+func (*TsoResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_78b27e6f04f44c6e, []int{1}
 }
 
-func (m *TsoReponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_TsoReponse.Unmarshal(m, b)
+func (m *TsoResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_TsoResponse.Unmarshal(m, b)
 }
-func (m *TsoReponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_TsoReponse.Marshal(b, m, deterministic)
+func (m *TsoResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_TsoResponse.Marshal(b, m, deterministic)
 }
-func (m *TsoReponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_TsoReponse.Merge(m, src)
+func (m *TsoResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TsoResponse.Merge(m, src)
 }
-func (m *TsoReponse) XXX_Size() int {
-	return xxx_messageInfo_TsoReponse.Size(m)
+func (m *TsoResponse) XXX_Size() int {
+	return xxx_messageInfo_TsoResponse.Size(m)
 }
-func (m *TsoReponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_TsoReponse.DiscardUnknown(m)
+func (m *TsoResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_TsoResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_TsoReponse proto.InternalMessageInfo
+var xxx_messageInfo_TsoResponse proto.InternalMessageInfo
 
-func (m *TsoReponse) GetTimestamp() uint64 {
+func (m *TsoResponse) GetTimestamp() uint64 {
 	if m != nil {
 		return m.Timestamp
 	}
@@ -97,25 +97,24 @@ func (m *TsoReponse) GetTimestamp() uint64 {
 
 func init() {
 	proto.RegisterType((*TsoRequest)(nil), "pdpb.TsoRequest")
-	proto.RegisterType((*TsoReponse)(nil), "pdpb.TsoReponse")
+	proto.RegisterType((*TsoResponse)(nil), "pdpb.TsoResponse")
 }
 
 func init() { proto.RegisterFile("pdpb.proto", fileDescriptor_78b27e6f04f44c6e) }
 
 var fileDescriptor_78b27e6f04f44c6e = []byte{
-	// 180 bytes of a gzipped FileDescriptorProto
+	// 162 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0x2a, 0x48, 0x29, 0x48,
 	0xd2, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x01, 0xb1, 0xa5, 0x64, 0xd2, 0xf3, 0xf3, 0xd3,
 	0x73, 0x52, 0xf5, 0x13, 0x0b, 0x32, 0xf5, 0x13, 0xf3, 0xf2, 0xf2, 0x4b, 0x12, 0x4b, 0x32, 0xf3,
 	0xf3, 0x8a, 0x21, 0x6a, 0x94, 0x78, 0xb8, 0xb8, 0x42, 0x8a, 0xf3, 0x83, 0x52, 0x0b, 0x4b, 0x53,
-	0x8b, 0x4b, 0x94, 0xb4, 0xa0, 0xbc, 0x82, 0xfc, 0xbc, 0xe2, 0x54, 0x21, 0x19, 0x2e, 0xce, 0x92,
-	0xcc, 0xdc, 0xd4, 0xe2, 0x92, 0xc4, 0xdc, 0x02, 0x09, 0x46, 0x05, 0x46, 0x0d, 0x96, 0x20, 0x84,
-	0x80, 0x51, 0x14, 0x17, 0x67, 0x80, 0x4b, 0x70, 0x6a, 0x51, 0x59, 0x66, 0x72, 0xaa, 0x90, 0x2f,
-	0x17, 0x8f, 0x7b, 0x6a, 0x49, 0x08, 0x4c, 0x52, 0x48, 0x40, 0x0f, 0xec, 0x0e, 0x84, 0xd1, 0x52,
-	0xc8, 0x22, 0x60, 0xe3, 0x95, 0x24, 0x9b, 0x2e, 0x3f, 0x99, 0xcc, 0x24, 0x2c, 0x24, 0x08, 0x76,
-	0x5a, 0x41, 0x8a, 0x3e, 0xdc, 0x6c, 0x27, 0x4e, 0x2e, 0xd6, 0xdc, 0x92, 0xcc, 0xec, 0xb2, 0x00,
-	0xc6, 0x24, 0x36, 0xb0, 0x3b, 0x8d, 0x01, 0x01, 0x00, 0x00, 0xff, 0xff, 0x35, 0xcb, 0xcb, 0xfd,
-	0xd9, 0x00, 0x00, 0x00,
+	0x8b, 0x4b, 0x94, 0xb4, 0xb9, 0xb8, 0xc1, 0xbc, 0xe2, 0x82, 0xfc, 0xbc, 0xe2, 0x54, 0x21, 0x19,
+	0x2e, 0xce, 0x92, 0xcc, 0xdc, 0xd4, 0xe2, 0x92, 0xc4, 0xdc, 0x02, 0x09, 0x46, 0x05, 0x46, 0x0d,
+	0x96, 0x20, 0x84, 0x80, 0x91, 0x19, 0x17, 0x53, 0x80, 0x8b, 0x90, 0x01, 0x17, 0x73, 0x48, 0x71,
+	0xbe, 0x90, 0x80, 0x1e, 0xd8, 0x62, 0x84, 0x59, 0x52, 0x82, 0x48, 0x22, 0x10, 0xf3, 0x94, 0x18,
+	0x34, 0x18, 0x0d, 0x18, 0x9d, 0x38, 0xb9, 0x58, 0x73, 0x4b, 0x32, 0xb3, 0xcb, 0x02, 0x18, 0x93,
+	0xd8, 0xc0, 0x8e, 0x30, 0x06, 0x04, 0x00, 0x00, 0xff, 0xff, 0xbe, 0xed, 0xcd, 0xde, 0xb6, 0x00,
+	0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -126,74 +125,106 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// PDServiceClient is the client API for PDService service.
+// PDClient is the client API for PD service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
-type PDServiceClient interface {
-	GetTimestamp(ctx context.Context, in *TsoRequest, opts ...grpc.CallOption) (*TsoReponse, error)
+type PDClient interface {
+	Tso(ctx context.Context, opts ...grpc.CallOption) (PD_TsoClient, error)
 }
 
-type pDServiceClient struct {
+type pDClient struct {
 	cc *grpc.ClientConn
 }
 
-func NewPDServiceClient(cc *grpc.ClientConn) PDServiceClient {
-	return &pDServiceClient{cc}
+func NewPDClient(cc *grpc.ClientConn) PDClient {
+	return &pDClient{cc}
 }
 
-func (c *pDServiceClient) GetTimestamp(ctx context.Context, in *TsoRequest, opts ...grpc.CallOption) (*TsoReponse, error) {
-	out := new(TsoReponse)
-	err := c.cc.Invoke(ctx, "/pdpb.PDService/GetTimestamp", in, out, opts...)
+func (c *pDClient) Tso(ctx context.Context, opts ...grpc.CallOption) (PD_TsoClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_PD_serviceDesc.Streams[0], "/pdpb.PD/Tso", opts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	x := &pDTsoClient{stream}
+	return x, nil
 }
 
-// PDServiceServer is the server API for PDService service.
-type PDServiceServer interface {
-	GetTimestamp(context.Context, *TsoRequest) (*TsoReponse, error)
+type PD_TsoClient interface {
+	Send(*TsoRequest) error
+	Recv() (*TsoResponse, error)
+	grpc.ClientStream
 }
 
-// UnimplementedPDServiceServer can be embedded to have forward compatible implementations.
-type UnimplementedPDServiceServer struct {
+type pDTsoClient struct {
+	grpc.ClientStream
 }
 
-func (*UnimplementedPDServiceServer) GetTimestamp(ctx context.Context, req *TsoRequest) (*TsoReponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetTimestamp not implemented")
+func (x *pDTsoClient) Send(m *TsoRequest) error {
+	return x.ClientStream.SendMsg(m)
 }
 
-func RegisterPDServiceServer(s *grpc.Server, srv PDServiceServer) {
-	s.RegisterService(&_PDService_serviceDesc, srv)
-}
-
-func _PDService_GetTimestamp_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(TsoRequest)
-	if err := dec(in); err != nil {
+func (x *pDTsoClient) Recv() (*TsoResponse, error) {
+	m := new(TsoResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
-	if interceptor == nil {
-		return srv.(PDServiceServer).GetTimestamp(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/pdpb.PDService/GetTimestamp",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PDServiceServer).GetTimestamp(ctx, req.(*TsoRequest))
-	}
-	return interceptor(ctx, in, info, handler)
+	return m, nil
 }
 
-var _PDService_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "pdpb.PDService",
-	HandlerType: (*PDServiceServer)(nil),
-	Methods: []grpc.MethodDesc{
+// PDServer is the server API for PD service.
+type PDServer interface {
+	Tso(PD_TsoServer) error
+}
+
+// UnimplementedPDServer can be embedded to have forward compatible implementations.
+type UnimplementedPDServer struct {
+}
+
+func (*UnimplementedPDServer) Tso(srv PD_TsoServer) error {
+	return status.Errorf(codes.Unimplemented, "method Tso not implemented")
+}
+
+func RegisterPDServer(s *grpc.Server, srv PDServer) {
+	s.RegisterService(&_PD_serviceDesc, srv)
+}
+
+func _PD_Tso_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(PDServer).Tso(&pDTsoServer{stream})
+}
+
+type PD_TsoServer interface {
+	Send(*TsoResponse) error
+	Recv() (*TsoRequest, error)
+	grpc.ServerStream
+}
+
+type pDTsoServer struct {
+	grpc.ServerStream
+}
+
+func (x *pDTsoServer) Send(m *TsoResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *pDTsoServer) Recv() (*TsoRequest, error) {
+	m := new(TsoRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+var _PD_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "pdpb.PD",
+	HandlerType: (*PDServer)(nil),
+	Methods:     []grpc.MethodDesc{},
+	Streams: []grpc.StreamDesc{
 		{
-			MethodName: "GetTimestamp",
-			Handler:    _PDService_GetTimestamp_Handler,
+			StreamName:    "Tso",
+			Handler:       _PD_Tso_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
 	Metadata: "pdpb.proto",
 }
