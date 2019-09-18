@@ -18,9 +18,9 @@ type RaftStore struct {
 }
 
 func CreateRaftStore(store *store.Store, proposeC chan []byte, confChangeC chan raftpb.ConfChange,
-	id int, cluster []string, join bool) *RaftStore {
+	id int, cluster []string, join bool, waldir string) *RaftStore {
 
-	commitC, errorC := NewRaftNode(id, cluster, join, proposeC, confChangeC, store.GetDir())
+	commitC, errorC := NewRaftNode(id, cluster, join, proposeC, confChangeC, waldir)
 
 	rs := &RaftStore{
 		store:       store,

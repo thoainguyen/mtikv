@@ -48,7 +48,6 @@ func (db *DB) DeleteData(key string) error {
 	return db.database.Delete(db.writeOpts, []byte(key))
 }
 
-
 func (db *DB) CloseDB() error {
 	db.database.Close()
 	return nil

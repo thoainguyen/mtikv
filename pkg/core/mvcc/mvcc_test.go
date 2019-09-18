@@ -21,7 +21,7 @@ func TestPrewrite(t *testing.T) {
 	st := store.CreateStore("data")
 	defer st.Destroy()
 
-	m := CreateMvcc(st, proposeC, confChangeC, 1, []string{"http://127.0.0.1:12379"}, false)
+	m := CreateMvcc(st, proposeC, confChangeC, 1, []string{"http://127.0.0.1:12379"}, false, "wal01")
 
 	mutations := []*pb.MvccObject{
 		{
@@ -65,7 +65,7 @@ func TestCommit(t *testing.T) {
 	st := store.CreateStore("data")
 	defer st.Destroy()
 
-	m := CreateMvcc(st, proposeC, confChangeC, 1, []string{"http://127.0.0.1:12379"}, false)
+	m := CreateMvcc(st, proposeC, confChangeC, 1, []string{"http://127.0.0.1:12379"}, false, "wal01")
 
 	mutations := []*pb.MvccObject{
 		{
@@ -122,7 +122,7 @@ func TestGet(t *testing.T) {
 	st := store.CreateStore("data")
 	defer st.Destroy()
 
-	m := CreateMvcc(st, proposeC, confChangeC, 1, []string{"http://127.0.0.1:12379"}, false)
+	m := CreateMvcc(st, proposeC, confChangeC, 1, []string{"http://127.0.0.1:12379"}, false, "wal01")
 
 	mutations := []*pb.MvccObject{
 		{

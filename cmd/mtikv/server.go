@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"os"
+	"strconv"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -11,11 +12,12 @@ import (
 )
 
 var (
-	pd        = flag.String("pd", "127.0.0.1:2379", "placement driver for mtikv")
-	data_dir  = flag.String("data-dir", "dump", "data directory")
-	cluster   = flag.String("cluster", "http://127.0.0.1:9021", "comma separated cluster peers")
-	clusterID = flag.String("cluster-id", "1", "region cluster id")
-	port      = flag.String("port", "12380", "key-value server port")
+	fPd      = flag.String("pd", "127.0.0.1:2379", "placement driver for mtikv")
+	fDir     = flag.String("dir", "dump", "data directory")
+	fPeers   = flag.String("peers", "http://127.0.0.1:9021", "sermi colon separated cluster peers")
+	fId      = flag.String("id", "1", "comma separated region id")
+	fCluster = flag.String("cluster", "1", "comma separated cluster id")
+	fPort    = flag.String("port", "12380", "key-value server port")
 )
 
 func main() {
@@ -23,17 +25,21 @@ func main() {
 	flag.Parse()
 
 	var (
-		peers       = strings.Split(*cluster, ",")
+		id          = strings.Split(*fId, ",")
+		cluster     = strings.Split(*fCluster, ",")
+		peers       = strings.Split(*fPeers, ";")
+		intID       = make([]int, len(peers))
 		proposeC    = make([]chan []byte, len(peers))
 		confChangeC = make([]chan raftpb.ConfChange, len(peers))
 	)
 
-	for i, _ := range peers {
+	for i := 0; i < len(peers); i++ {
+		intID[i], _ = strconv.Atoi(id[i])
 		proposeC[i] = make(chan []byte)
 		confChangeC[i] = make(chan raftpb.ConfChange)
 	}
 
-	clus := &cmd.Cluster{*clusterID, peers, proposeC, confChangeC}
+	clus := &cmd.Cluster{cluster, intID, peers, proposeC, confChangeC}
 
 	defer func() {
 		for i, _ := range peers {
@@ -46,7 +52,7 @@ func main() {
 		}
 	}()
 
-	if err := cmd.RunServer(clus, *data_dir, *port); err != nil {
+	if err := cmd.RunServer(clus, *fDir, *fPort); err != nil {
 		log.Fatal("run server err: ", err)
 		os.Exit(1)
 	}

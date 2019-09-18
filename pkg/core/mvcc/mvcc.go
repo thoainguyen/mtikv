@@ -42,8 +42,9 @@ func (m *Mvcc) GetStore() Storage {
 }
 
 func CreateMvcc(st *store.Store, proposeC chan []byte, confChangeC chan raftpb.ConfChange,
-	id int, cluster []string, join bool) *Mvcc {
-	sr := raftstore.CreateRaftStore(st, proposeC, confChangeC, id, cluster, join)
+	id int, cluster []string, join bool, waldir string) *Mvcc {
+
+	sr := raftstore.CreateRaftStore(st, proposeC, confChangeC, id, cluster, join, st.GetDir()+"/"+waldir)
 	return &Mvcc{
 		store:   sr,
 		kPathDB: st.GetDir(),

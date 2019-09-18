@@ -2,9 +2,11 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 
 	cmap "github.com/orcaman/concurrent-map"
@@ -18,7 +20,8 @@ import (
 )
 
 type Cluster struct {
-	ClusterID   string
+	Cluster     []string
+	ID          []int
 	Peers       []string
 	ProposeC    []chan []byte
 	ConfChangeC []chan raftpb.ConfChange
@@ -34,7 +37,7 @@ func RunServer(clus *Cluster, dir, port string) error {
 
 	var wg sync.WaitGroup
 
-	for idx, _ := range clus.Peers {
+	for idx, _ := range clus.ID {
 		wg.Add(1)
 		go createMvccStore(&regions, idx, st, clus, &wg)
 	}
@@ -46,8 +49,9 @@ func RunServer(clus *Cluster, dir, port string) error {
 
 func createMvccStore(regions *cmap.ConcurrentMap, idx int, st *store.Store, clus *Cluster, wg *sync.WaitGroup) {
 
-	region := mvcc.CreateMvcc(st, clus.ProposeC[idx], clus.ConfChangeC[idx], idx+1, clus.Peers, false)
-	regions.Set(clus.ClusterID, region)
+	region := mvcc.CreateMvcc(st, clus.ProposeC[idx], clus.ConfChangeC[idx], clus.ID[idx],
+		strings.Split(clus.Peers[idx], ","), false, fmt.Sprintf("wal-%02s", clus.Cluster[idx]))
+	regions.Set(clus.Cluster[idx], region)
 	wg.Done()
 }
 

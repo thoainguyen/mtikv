@@ -45,7 +45,7 @@ func (serv MTiKvService) Get(ctx context.Context, in *pb.GetRequest) (*pb.GetRes
 	if !ok {
 		return &pb.GetResponse{RegionError: pb.Error_RegionNotFound}, nil
 	}
-	value, _ := reg.(*mvcc.Mvcc).Get(in.GetVersion(), in.GetKey())
+	value := reg.(*mvcc.Mvcc).Get(in.GetVersion(), in.GetKey())
 	return &pb.GetResponse{Value: value, RegionError: pb.Error_Ok}, nil
 }
 
