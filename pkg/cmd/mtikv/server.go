@@ -5,7 +5,6 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"strconv"
 	"sync"
 
 	cmap "github.com/orcaman/concurrent-map"
@@ -19,6 +18,7 @@ import (
 )
 
 type Cluster struct {
+	ClusterID   string
 	Peers       []string
 	ProposeC    []chan []byte
 	ConfChangeC []chan raftpb.ConfChange
@@ -34,9 +34,9 @@ func RunServer(clus *Cluster, dir, port string) error {
 
 	var wg sync.WaitGroup
 
-	for i, _ := range clus.Peers {
+	for idx, _ := range clus.Peers {
 		wg.Add(1)
-		go createMvccStore(&regions, st, clus.ProposeC[i], clus.ConfChangeC[i], i+1, clus.Peers, &wg)
+		go createMvccStore(&regions, idx, st, clus, &wg)
 	}
 	wg.Wait()
 
@@ -44,10 +44,10 @@ func RunServer(clus *Cluster, dir, port string) error {
 	return RunMTiKvService(ctx, serv, port)
 }
 
-func createMvccStore(regions *cmap.ConcurrentMap, st *store.Store, proposeC chan []byte,
-	confChangeC chan raftpb.ConfChange, id int, peers []string, wg *sync.WaitGroup) {
-	region := mvcc.CreateMvcc(st, proposeC, confChangeC, id, peers, false)
-	regions.Set(strconv.Itoa(id), region)
+func createMvccStore(regions *cmap.ConcurrentMap, idx int, st *store.Store, clus *Cluster, wg *sync.WaitGroup) {
+
+	region := mvcc.CreateMvcc(st, clus.ProposeC[idx], clus.ConfChangeC[idx], idx+1, clus.Peers, false)
+	regions.Set(clus.ClusterID, region)
 	wg.Done()
 }
 

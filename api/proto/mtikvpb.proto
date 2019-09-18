@@ -29,8 +29,9 @@ message MvccObject {
 }
 
 enum Error {
-    RegionNotFound = 0;
-    KeyNotInRegion = 1;
+    Ok             = 0;
+    RegionNotFound = 1;
+    KeyNotInRegion = 2;
 }
 
 enum KeyError {
@@ -39,7 +40,7 @@ enum KeyError {
 }
 
 message Context {
-    uint64 region_id = 1;
+    string cluster_id = 1;
 }
 
 
@@ -50,23 +51,24 @@ message KeyValue {
 
 message PrewriteRequest {
     Context context = 1;
-    repeated MvccObject objects = 2;
+    repeated MvccObject mutation = 2; // {Key, Value, Op}
     bytes primary_lock = 3;
     uint64 start_version = 4;
 }
 
-message PrewriteReponse {
+message PrewriteResponse {
     Error region_error = 1;
     repeated KeyError errors = 2;
 }
 
 message CommitRequest {
     Context context = 1;
-    repeated bytes keys = 2;
-    uint64 commit_version = 3;
+    repeated MvccObject keys = 2; // {Key}
+    uint64 start_version  = 3;
+    uint64 commit_version = 4;
 }
 
-message CommitReponse {
+message CommitResponse {
     Error region_error = 1;
     repeated KeyError errors = 2;
 }
@@ -77,7 +79,7 @@ message GetRequest {
     uint64 version = 3;
 }
 
-message GetReponse {
+message GetResponse {
     Error region_error = 1;
     KeyError error = 2;
     bytes value = 3;
@@ -140,11 +142,11 @@ message RawDeleteResponse {
 
 service MTikv{
     
-    rpc  Prewrite(PrewriteRequest) returns (PrewriteReponse){}
-    rpc  Commit(CommitRequest) returns (CommitReponse){}
-    rpc  Get(GetRequest) returns (GetReponse){}
+    rpc  Prewrite(PrewriteRequest) returns (PrewriteResponse){}
+    rpc  Commit(CommitRequest) returns (CommitResponse){}
+    rpc  Get(GetRequest) returns (GetResponse){}
     rpc  ResolveLock(ResolveLockRequest) returns (ResolveLockResponse){}
-    rpc  GC (GCRequest) returns (GetReponse){}
+    rpc  GC (GCRequest) returns (GetResponse){}
 
     rpc  RawGet(RawGetRequest) returns (RawGetResponse){}
     rpc  RawPut(RawPutRequest) returns (RawPutResponse){}

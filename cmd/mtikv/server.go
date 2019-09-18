@@ -11,10 +11,11 @@ import (
 )
 
 var (
-	pd       = flag.String("pd", "127.0.0.1:2379", "placement driver for mtikv")
-	data_dir = flag.String("data-dir", "mtikv", "data directory")
-	cluster  = flag.String("cluster", "http://127.0.0.1:9021", "comma separated cluster peers")
-	port     = flag.String("port", "12380", "key-value server port")
+	pd        = flag.String("pd", "127.0.0.1:2379", "placement driver for mtikv")
+	data_dir  = flag.String("data-dir", "dump", "data directory")
+	cluster   = flag.String("cluster", "http://127.0.0.1:9021", "comma separated cluster peers")
+	clusterID = flag.String("cluster-id", "1", "region cluster id")
+	port      = flag.String("port", "12380", "key-value server port")
 )
 
 func main() {
@@ -32,7 +33,7 @@ func main() {
 		confChangeC[i] = make(chan raftpb.ConfChange)
 	}
 
-	clus := &cmd.Cluster{peers, proposeC, confChangeC}
+	clus := &cmd.Cluster{*clusterID, peers, proposeC, confChangeC}
 
 	defer func() {
 		for i, _ := range peers {

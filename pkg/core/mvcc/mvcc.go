@@ -94,6 +94,8 @@ func (m *Mvcc) Prewrite(mutations []*pb.MvccObject, start_ts uint64,
 				keyIsLockedErrors = append(keyIsLockedErrors, ErrorKeyIsLocked)
 			}
 		} else {
+			mutation.StartTs = start_ts
+			mutation.PrimaryKey = primary_key
 			prewriteList = append(prewriteList, mutation)
 		}
 	}
@@ -110,28 +112,31 @@ func (m *Mvcc) Prewrite(mutations []*pb.MvccObject, start_ts uint64,
 }
 
 // commit(keys, start_ts, commit_ts)
-func (m *Mvcc) Commit(start_ts, commit_ts uint64, mutations []*pb.MvccObject) error {
+func (m *Mvcc) Commit(start_ts, commit_ts uint64, keys []*pb.MvccObject) error {
 	var (
 		result     []byte
-		commitList = mutations[:0]
+		commitList = keys[:0]
 	)
 
 	// for each key in keys, do commit
-	for _, mutation := range mutations {
+	for _, key := range keys {
 
 		// get key's lock
-		result = m.store.Get(CF_LOCK, utils.Marshal(&pb.MvccObject{Key: mutation.GetKey()}))
+		result = m.store.Get(CF_LOCK, utils.Marshal(&pb.MvccObject{Key: key.GetKey()}))
 		if len(result) != 0 { // if lock exist
 			lock := &pb.MvccObject{}
 			utils.Unmarshal(result, lock)
 
 			// if lock_ts == start_ts
 			if lock.GetStartTs() == start_ts {
-				commitList = append(commitList, mutation)
+				key.StartTs = start_ts
+				key.CommitTs = commit_ts
+				key.Op = lock.GetOp()
+				commitList = append(commitList, key)
 			}
 		} else { // lock not exist or txn dismatch
 			// get(key, start_ts) from write
-			result = m.store.Get(CF_WRITE, utils.Marshal(&pb.MvccObject{Key: mutation.Key, CommitTs: commit_ts}))
+			result = m.store.Get(CF_WRITE, utils.Marshal(&pb.MvccObject{Key: key.Key, CommitTs: commit_ts}))
 			if len(result) != 0 { // if write exist
 
 				write := &pb.MvccObject{}
@@ -154,7 +159,7 @@ func (m *Mvcc) Commit(start_ts, commit_ts uint64, mutations []*pb.MvccObject) er
 	return nil
 }
 
-func (m *Mvcc) Get(start_ts uint64, key []byte) ([]byte, error) {
+func (m *Mvcc) Get(start_ts uint64, key []byte) []byte {
 
 	var (
 		keyGet   []byte
@@ -173,13 +178,13 @@ func (m *Mvcc) Get(start_ts uint64, key []byte) ([]byte, error) {
 		}
 		utils.Unmarshal(valueGet, write)
 		if write.GetOp() == pb.Op_DEL {
-			return nil, nil
+			return nil
 		}
 		if write.GetOp() == pb.Op_RBACK {
 			version -= 1
 			continue
 		}
-		return m.store.Get(CF_DATA, utils.Marshal(&pb.MvccObject{Key: key, StartTs: write.GetStartTs()})), nil
+		return m.store.Get(CF_DATA, utils.Marshal(&pb.MvccObject{Key: key, StartTs: write.GetStartTs()}))
 	}
-	return nil, nil
+	return nil
 }
