@@ -4,6 +4,11 @@ package mtikv_cli;
 option java_multiple_files = true;
 option java_package = "mtikv";
 
+enum Error {
+    SUCCESS = 0;
+    FAILED = 1;
+    INVALID = 2;
+}
 
 message BeginTxnRequest{}
 message BeginTxnResponse{
@@ -15,7 +20,7 @@ message CommitTxnRequest{
 }
 message CommitTxnResponse{
     uint64 transID = 1;
-    string msg = 2;
+    Error error = 2;
 }
 
 message GetRequest{
@@ -25,6 +30,7 @@ message GetRequest{
 message GetResponse{
     uint64 transID = 1;
     bytes value = 2;
+    Error error = 3;
 }
 
 message SetRequest{
@@ -34,7 +40,7 @@ message SetRequest{
 }
 message SetResponse{
     uint64 transID = 1;
-    string msg = 2;
+    Error error = 2;
 }
 
 message DeleteRequest{
@@ -43,10 +49,10 @@ message DeleteRequest{
 }
 message DeleteResponse{
     uint64 transID = 1;
-    string msg = 2;
+    Error error = 2;
 }
 
-service MTikvClient{
+service MTikvCli{
     rpc BeginTxn (BeginTxnRequest) returns (BeginTxnResponse) {}
     rpc CommitTxn (CommitTxnRequest) returns (CommitTxnResponse){}
     rpc Set(SetRequest) returns (SetResponse){}

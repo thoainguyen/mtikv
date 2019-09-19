@@ -14,7 +14,7 @@ import (
 var (
 	fDir     = flag.String("dir", "dump", "data directory")
 	fPeers   = flag.String("peers", "http://127.0.0.1:9021", "sermi colon separated cluster peers")
-	fId      = flag.String("id", "1", "comma separated region id")
+	fID      = flag.String("id", "1", "comma separated region id")
 	fCluster = flag.String("cluster", "1", "comma separated cluster id")
 	fPort    = flag.String("port", "12380", "key-value server port")
 )
@@ -24,7 +24,7 @@ func main() {
 	flag.Parse()
 
 	var (
-		id          = strings.Split(*fId, ",")
+		id          = strings.Split(*fID, ",")
 		cluster     = strings.Split(*fCluster, ",")
 		peers       = strings.Split(*fPeers, ";")
 		intID       = make([]int, len(id))
@@ -41,7 +41,7 @@ func main() {
 	clus := &cmd.Cluster{cluster, intID, peers, proposeC, confChangeC}
 
 	defer func() {
-		for i, _ := range id {
+		for i := range id {
 			if proposeC[i] != nil {
 				close(proposeC[i])
 			}

@@ -24,6 +24,34 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
+type Error int32
+
+const (
+	Error_SUCCESS Error = 0
+	Error_FAILED  Error = 1
+	Error_INVALID Error = 2
+)
+
+var Error_name = map[int32]string{
+	0: "SUCCESS",
+	1: "FAILED",
+	2: "INVALID",
+}
+
+var Error_value = map[string]int32{
+	"SUCCESS": 0,
+	"FAILED":  1,
+	"INVALID": 2,
+}
+
+func (x Error) String() string {
+	return proto.EnumName(Error_name, int32(x))
+}
+
+func (Error) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_dedcbe7626113226, []int{0}
+}
+
 type BeginTxnRequest struct {
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -135,7 +163,7 @@ func (m *CommitTxnRequest) GetTransID() uint64 {
 
 type CommitTxnResponse struct {
 	TransID              uint64   `protobuf:"varint,1,opt,name=transID,proto3" json:"transID,omitempty"`
-	Msg                  string   `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Error                Error    `protobuf:"varint,2,opt,name=error,proto3,enum=mtikv_cli.Error" json:"error,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -173,11 +201,11 @@ func (m *CommitTxnResponse) GetTransID() uint64 {
 	return 0
 }
 
-func (m *CommitTxnResponse) GetMsg() string {
+func (m *CommitTxnResponse) GetError() Error {
 	if m != nil {
-		return m.Msg
+		return m.Error
 	}
-	return ""
+	return Error_SUCCESS
 }
 
 type GetRequest struct {
@@ -230,6 +258,7 @@ func (m *GetRequest) GetKey() []byte {
 type GetResponse struct {
 	TransID              uint64   `protobuf:"varint,1,opt,name=transID,proto3" json:"transID,omitempty"`
 	Value                []byte   `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	Error                Error    `protobuf:"varint,3,opt,name=error,proto3,enum=mtikv_cli.Error" json:"error,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -272,6 +301,13 @@ func (m *GetResponse) GetValue() []byte {
 		return m.Value
 	}
 	return nil
+}
+
+func (m *GetResponse) GetError() Error {
+	if m != nil {
+		return m.Error
+	}
+	return Error_SUCCESS
 }
 
 type SetRequest struct {
@@ -331,7 +367,7 @@ func (m *SetRequest) GetValue() []byte {
 
 type SetResponse struct {
 	TransID              uint64   `protobuf:"varint,1,opt,name=transID,proto3" json:"transID,omitempty"`
-	Msg                  string   `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Error                Error    `protobuf:"varint,2,opt,name=error,proto3,enum=mtikv_cli.Error" json:"error,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -369,11 +405,11 @@ func (m *SetResponse) GetTransID() uint64 {
 	return 0
 }
 
-func (m *SetResponse) GetMsg() string {
+func (m *SetResponse) GetError() Error {
 	if m != nil {
-		return m.Msg
+		return m.Error
 	}
-	return ""
+	return Error_SUCCESS
 }
 
 type DeleteRequest struct {
@@ -425,7 +461,7 @@ func (m *DeleteRequest) GetKey() []byte {
 
 type DeleteResponse struct {
 	TransID              uint64   `protobuf:"varint,1,opt,name=transID,proto3" json:"transID,omitempty"`
-	Msg                  string   `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Error                Error    `protobuf:"varint,2,opt,name=error,proto3,enum=mtikv_cli.Error" json:"error,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -463,14 +499,15 @@ func (m *DeleteResponse) GetTransID() uint64 {
 	return 0
 }
 
-func (m *DeleteResponse) GetMsg() string {
+func (m *DeleteResponse) GetError() Error {
 	if m != nil {
-		return m.Msg
+		return m.Error
 	}
-	return ""
+	return Error_SUCCESS
 }
 
 func init() {
+	proto.RegisterEnum("mtikv_cli.Error", Error_name, Error_value)
 	proto.RegisterType((*BeginTxnRequest)(nil), "mtikv_cli.BeginTxnRequest")
 	proto.RegisterType((*BeginTxnResponse)(nil), "mtikv_cli.BeginTxnResponse")
 	proto.RegisterType((*CommitTxnRequest)(nil), "mtikv_cli.CommitTxnRequest")
@@ -486,28 +523,31 @@ func init() {
 func init() { proto.RegisterFile("mtikv_clipb.proto", fileDescriptor_dedcbe7626113226) }
 
 var fileDescriptor_dedcbe7626113226 = []byte{
-	// 332 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x93, 0x4d, 0x4f, 0xbb, 0x40,
-	0x10, 0xc6, 0xff, 0xb4, 0xff, 0x56, 0x99, 0xfa, 0x52, 0x36, 0x6a, 0x10, 0x3d, 0x34, 0x7b, 0xea,
-	0xc1, 0x70, 0xd0, 0xc4, 0x68, 0xd4, 0x34, 0x69, 0x6b, 0xd0, 0x83, 0xc6, 0x40, 0xef, 0xa6, 0x35,
-	0x93, 0x66, 0xc3, 0xab, 0x65, 0x4b, 0xf4, 0x53, 0xfa, 0x95, 0x0c, 0x20, 0xb0, 0x45, 0x22, 0xda,
-	0x1b, 0x3b, 0xf3, 0xfc, 0x9e, 0xd9, 0xcc, 0x3e, 0x80, 0xe2, 0x72, 0x66, 0x47, 0xcf, 0x2f, 0x0e,
-	0x0b, 0x66, 0x7a, 0xb0, 0xf0, 0xb9, 0x4f, 0xe4, 0xbc, 0x44, 0x15, 0xd8, 0x1d, 0xe2, 0x9c, 0x79,
-	0x93, 0x37, 0xcf, 0xc4, 0xd7, 0x25, 0x86, 0x9c, 0x9e, 0x40, 0xb7, 0x28, 0x85, 0x81, 0xef, 0x85,
-	0x48, 0x54, 0xd8, 0xe0, 0x8b, 0xa9, 0x17, 0xde, 0x8f, 0x55, 0xa9, 0x27, 0xf5, 0xff, 0x9b, 0xd9,
-	0x31, 0x56, 0x8f, 0x7c, 0xd7, 0x65, 0xbc, 0x70, 0xf8, 0x41, 0x3d, 0x00, 0x45, 0x50, 0xd7, 0x99,
-	0x93, 0x2e, 0x34, 0xdd, 0x70, 0xae, 0x36, 0x7a, 0x52, 0x5f, 0x36, 0xe3, 0x4f, 0x7a, 0x01, 0x60,
-	0x20, 0xaf, 0x1d, 0x14, 0x93, 0x36, 0xbe, 0x27, 0xe4, 0x96, 0x19, 0x7f, 0xd2, 0x1b, 0xe8, 0x24,
-	0x64, 0xed, 0xd0, 0x3d, 0x68, 0x45, 0x53, 0x67, 0x89, 0x5f, 0x70, 0x7a, 0xa0, 0x8f, 0x00, 0xd6,
-	0x5a, 0x83, 0x0b, 0xbf, 0xa6, 0xe8, 0x77, 0x09, 0x1d, 0xeb, 0x57, 0xd7, 0xf9, 0xbe, 0x83, 0x2b,
-	0xd8, 0x1e, 0xa3, 0x83, 0x1c, 0xd7, 0x59, 0xc3, 0x35, 0xec, 0x64, 0xf0, 0xdf, 0x47, 0x9f, 0x7e,
-	0x34, 0xa0, 0xf3, 0x30, 0x61, 0x76, 0x34, 0x72, 0x18, 0x7a, 0x9c, 0xdc, 0xc2, 0x66, 0x96, 0x15,
-	0xa2, 0xe9, 0x79, 0xac, 0xf4, 0x52, 0xa6, 0xb4, 0xa3, 0xca, 0x5e, 0x7a, 0x01, 0xfa, 0x8f, 0xdc,
-	0x81, 0x9c, 0xc7, 0x82, 0x88, 0xda, 0x72, 0xb4, 0xb4, 0xe3, 0xea, 0x66, 0xee, 0x74, 0x0e, 0x4d,
-	0x0b, 0x39, 0xd9, 0x17, 0x64, 0xc5, 0xb3, 0x69, 0x07, 0xe5, 0xb2, 0xc8, 0x19, 0x25, 0xce, 0xa8,
-	0xe6, 0x8c, 0x15, 0x6e, 0x00, 0xed, 0x74, 0x9d, 0x44, 0x15, 0x34, 0x2b, 0xcf, 0xa3, 0x1d, 0x56,
-	0x74, 0x32, 0x83, 0xa1, 0x0c, 0xad, 0xa4, 0xfb, 0x24, 0xcd, 0xda, 0xc9, 0xdf, 0x79, 0xf6, 0x19,
-	0x00, 0x00, 0xff, 0xff, 0x4c, 0x84, 0x15, 0x1a, 0xb2, 0x03, 0x00, 0x00,
+	// 382 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x54, 0x5f, 0x4f, 0xba, 0x50,
+	0x18, 0x16, 0xf9, 0xe1, 0x9f, 0xd7, 0x5f, 0x86, 0x67, 0xd5, 0x88, 0xba, 0x70, 0x5c, 0x34, 0xd7,
+	0xca, 0x0b, 0xdb, 0x5a, 0x5b, 0x17, 0x4d, 0x81, 0x88, 0xcd, 0xac, 0x81, 0x76, 0xdb, 0xb4, 0x9d,
+	0x35, 0x26, 0x82, 0xc1, 0xd1, 0xd5, 0x77, 0xec, 0x43, 0x35, 0x20, 0xe0, 0xc8, 0x98, 0x3a, 0xd7,
+	0x1d, 0xef, 0xfb, 0x3c, 0xcf, 0xfb, 0x3e, 0x9c, 0xf3, 0xec, 0x40, 0x63, 0x46, 0xac, 0xe9, 0xf2,
+	0xf5, 0xcd, 0xb6, 0xe6, 0x93, 0xf6, 0xdc, 0x73, 0x89, 0x8b, 0xaa, 0x49, 0x4b, 0x6a, 0xc0, 0x7e,
+	0x0f, 0xbf, 0x5b, 0xce, 0xf0, 0xd3, 0x31, 0xf0, 0xc7, 0x02, 0xfb, 0x44, 0xba, 0x00, 0x3e, 0x6d,
+	0xf9, 0x73, 0xd7, 0xf1, 0x31, 0x12, 0xa0, 0x4c, 0xbc, 0xb1, 0xe3, 0xeb, 0x8a, 0xc0, 0x34, 0x99,
+	0xd6, 0x3f, 0x23, 0x2e, 0x03, 0xb6, 0xec, 0xce, 0x66, 0x16, 0x49, 0x27, 0xac, 0x61, 0x8f, 0xa0,
+	0x41, 0xb1, 0x37, 0x0d, 0x47, 0x67, 0xc0, 0x61, 0xcf, 0x73, 0x3d, 0xa1, 0xd8, 0x64, 0x5a, 0xf5,
+	0x0e, 0xdf, 0x4e, 0x8c, 0xb7, 0xd5, 0xa0, 0x6f, 0x44, 0xb0, 0x74, 0x03, 0xa0, 0x61, 0xb2, 0x71,
+	0x3d, 0xe2, 0x81, 0x9d, 0xe2, 0xaf, 0x70, 0xda, 0x7f, 0x23, 0xf8, 0x94, 0x30, 0xd4, 0x42, 0xe5,
+	0x46, 0x2b, 0x07, 0xc0, 0x2d, 0xc7, 0xf6, 0x02, 0xff, 0x8a, 0xa3, 0x22, 0x35, 0xc8, 0xae, 0x37,
+	0x38, 0x00, 0x30, 0x77, 0x32, 0x98, 0xee, 0x65, 0xa9, 0xbd, 0xd2, 0x13, 0xd4, 0xcc, 0xad, 0x6c,
+	0x6f, 0x7b, 0x82, 0xb7, 0xb0, 0xa7, 0x60, 0x1b, 0x13, 0xbc, 0xcb, 0x21, 0x1a, 0x50, 0x8f, 0xc5,
+	0x7f, 0x65, 0xe8, 0xfc, 0x12, 0xb8, 0xb0, 0x46, 0x35, 0x28, 0x9b, 0x23, 0x59, 0x56, 0x4d, 0x93,
+	0x2f, 0x20, 0x80, 0xd2, 0x7d, 0x57, 0xef, 0xab, 0x0a, 0xcf, 0x04, 0x80, 0x3e, 0x78, 0xe9, 0xf6,
+	0x75, 0x85, 0x2f, 0x76, 0xbe, 0x8b, 0x50, 0x79, 0x1c, 0x5a, 0xd3, 0xa5, 0x6c, 0x5b, 0x48, 0x85,
+	0x4a, 0x9c, 0x60, 0x24, 0x52, 0x0b, 0x32, 0x49, 0x17, 0x4f, 0x72, 0xb1, 0xe8, 0x17, 0xa4, 0x02,
+	0x7a, 0x80, 0x6a, 0x12, 0x56, 0x44, 0x73, 0xb3, 0x81, 0x17, 0x4f, 0xf3, 0xc1, 0x64, 0xd2, 0x35,
+	0xb0, 0x26, 0x26, 0xe8, 0x90, 0xa2, 0xa5, 0x71, 0x10, 0x8f, 0xb2, 0x6d, 0x5a, 0xa7, 0x65, 0x74,
+	0x5a, 0xbe, 0x4e, 0x5b, 0xd1, 0xdd, 0x41, 0x29, 0xba, 0x10, 0x24, 0x50, 0x9c, 0x95, 0x0b, 0x16,
+	0x8f, 0x73, 0x90, 0x78, 0x40, 0xaf, 0x0a, 0x5c, 0x88, 0x3e, 0x33, 0x93, 0x52, 0xf8, 0x66, 0x5c,
+	0xfd, 0x04, 0x00, 0x00, 0xff, 0xff, 0x9c, 0x07, 0x74, 0xc3, 0x48, 0x04, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -518,10 +558,10 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// MTikvClientClient is the client API for MTikvClient service.
+// MTikvCliClient is the client API for MTikvCli service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
-type MTikvClientClient interface {
+type MTikvCliClient interface {
 	BeginTxn(ctx context.Context, in *BeginTxnRequest, opts ...grpc.CallOption) (*BeginTxnResponse, error)
 	CommitTxn(ctx context.Context, in *CommitTxnRequest, opts ...grpc.CallOption) (*CommitTxnResponse, error)
 	Set(ctx context.Context, in *SetRequest, opts ...grpc.CallOption) (*SetResponse, error)
@@ -529,61 +569,61 @@ type MTikvClientClient interface {
 	Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*DeleteResponse, error)
 }
 
-type mTikvClientClient struct {
+type mTikvCliClient struct {
 	cc *grpc.ClientConn
 }
 
-func NewMTikvClientClient(cc *grpc.ClientConn) MTikvClientClient {
-	return &mTikvClientClient{cc}
+func NewMTikvCliClient(cc *grpc.ClientConn) MTikvCliClient {
+	return &mTikvCliClient{cc}
 }
 
-func (c *mTikvClientClient) BeginTxn(ctx context.Context, in *BeginTxnRequest, opts ...grpc.CallOption) (*BeginTxnResponse, error) {
+func (c *mTikvCliClient) BeginTxn(ctx context.Context, in *BeginTxnRequest, opts ...grpc.CallOption) (*BeginTxnResponse, error) {
 	out := new(BeginTxnResponse)
-	err := c.cc.Invoke(ctx, "/mtikv_cli.MTikvClient/BeginTxn", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/mtikv_cli.MTikvCli/BeginTxn", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *mTikvClientClient) CommitTxn(ctx context.Context, in *CommitTxnRequest, opts ...grpc.CallOption) (*CommitTxnResponse, error) {
+func (c *mTikvCliClient) CommitTxn(ctx context.Context, in *CommitTxnRequest, opts ...grpc.CallOption) (*CommitTxnResponse, error) {
 	out := new(CommitTxnResponse)
-	err := c.cc.Invoke(ctx, "/mtikv_cli.MTikvClient/CommitTxn", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/mtikv_cli.MTikvCli/CommitTxn", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *mTikvClientClient) Set(ctx context.Context, in *SetRequest, opts ...grpc.CallOption) (*SetResponse, error) {
+func (c *mTikvCliClient) Set(ctx context.Context, in *SetRequest, opts ...grpc.CallOption) (*SetResponse, error) {
 	out := new(SetResponse)
-	err := c.cc.Invoke(ctx, "/mtikv_cli.MTikvClient/Set", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/mtikv_cli.MTikvCli/Set", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *mTikvClientClient) Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error) {
+func (c *mTikvCliClient) Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error) {
 	out := new(GetResponse)
-	err := c.cc.Invoke(ctx, "/mtikv_cli.MTikvClient/Get", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/mtikv_cli.MTikvCli/Get", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *mTikvClientClient) Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*DeleteResponse, error) {
+func (c *mTikvCliClient) Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*DeleteResponse, error) {
 	out := new(DeleteResponse)
-	err := c.cc.Invoke(ctx, "/mtikv_cli.MTikvClient/Delete", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/mtikv_cli.MTikvCli/Delete", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// MTikvClientServer is the server API for MTikvClient service.
-type MTikvClientServer interface {
+// MTikvCliServer is the server API for MTikvCli service.
+type MTikvCliServer interface {
 	BeginTxn(context.Context, *BeginTxnRequest) (*BeginTxnResponse, error)
 	CommitTxn(context.Context, *CommitTxnRequest) (*CommitTxnResponse, error)
 	Set(context.Context, *SetRequest) (*SetResponse, error)
@@ -591,143 +631,143 @@ type MTikvClientServer interface {
 	Delete(context.Context, *DeleteRequest) (*DeleteResponse, error)
 }
 
-// UnimplementedMTikvClientServer can be embedded to have forward compatible implementations.
-type UnimplementedMTikvClientServer struct {
+// UnimplementedMTikvCliServer can be embedded to have forward compatible implementations.
+type UnimplementedMTikvCliServer struct {
 }
 
-func (*UnimplementedMTikvClientServer) BeginTxn(ctx context.Context, req *BeginTxnRequest) (*BeginTxnResponse, error) {
+func (*UnimplementedMTikvCliServer) BeginTxn(ctx context.Context, req *BeginTxnRequest) (*BeginTxnResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BeginTxn not implemented")
 }
-func (*UnimplementedMTikvClientServer) CommitTxn(ctx context.Context, req *CommitTxnRequest) (*CommitTxnResponse, error) {
+func (*UnimplementedMTikvCliServer) CommitTxn(ctx context.Context, req *CommitTxnRequest) (*CommitTxnResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CommitTxn not implemented")
 }
-func (*UnimplementedMTikvClientServer) Set(ctx context.Context, req *SetRequest) (*SetResponse, error) {
+func (*UnimplementedMTikvCliServer) Set(ctx context.Context, req *SetRequest) (*SetResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Set not implemented")
 }
-func (*UnimplementedMTikvClientServer) Get(ctx context.Context, req *GetRequest) (*GetResponse, error) {
+func (*UnimplementedMTikvCliServer) Get(ctx context.Context, req *GetRequest) (*GetResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Get not implemented")
 }
-func (*UnimplementedMTikvClientServer) Delete(ctx context.Context, req *DeleteRequest) (*DeleteResponse, error) {
+func (*UnimplementedMTikvCliServer) Delete(ctx context.Context, req *DeleteRequest) (*DeleteResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Delete not implemented")
 }
 
-func RegisterMTikvClientServer(s *grpc.Server, srv MTikvClientServer) {
-	s.RegisterService(&_MTikvClient_serviceDesc, srv)
+func RegisterMTikvCliServer(s *grpc.Server, srv MTikvCliServer) {
+	s.RegisterService(&_MTikvCli_serviceDesc, srv)
 }
 
-func _MTikvClient_BeginTxn_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _MTikvCli_BeginTxn_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(BeginTxnRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MTikvClientServer).BeginTxn(ctx, in)
+		return srv.(MTikvCliServer).BeginTxn(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/mtikv_cli.MTikvClient/BeginTxn",
+		FullMethod: "/mtikv_cli.MTikvCli/BeginTxn",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MTikvClientServer).BeginTxn(ctx, req.(*BeginTxnRequest))
+		return srv.(MTikvCliServer).BeginTxn(ctx, req.(*BeginTxnRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _MTikvClient_CommitTxn_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _MTikvCli_CommitTxn_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CommitTxnRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MTikvClientServer).CommitTxn(ctx, in)
+		return srv.(MTikvCliServer).CommitTxn(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/mtikv_cli.MTikvClient/CommitTxn",
+		FullMethod: "/mtikv_cli.MTikvCli/CommitTxn",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MTikvClientServer).CommitTxn(ctx, req.(*CommitTxnRequest))
+		return srv.(MTikvCliServer).CommitTxn(ctx, req.(*CommitTxnRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _MTikvClient_Set_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _MTikvCli_Set_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SetRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MTikvClientServer).Set(ctx, in)
+		return srv.(MTikvCliServer).Set(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/mtikv_cli.MTikvClient/Set",
+		FullMethod: "/mtikv_cli.MTikvCli/Set",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MTikvClientServer).Set(ctx, req.(*SetRequest))
+		return srv.(MTikvCliServer).Set(ctx, req.(*SetRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _MTikvClient_Get_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _MTikvCli_Get_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MTikvClientServer).Get(ctx, in)
+		return srv.(MTikvCliServer).Get(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/mtikv_cli.MTikvClient/Get",
+		FullMethod: "/mtikv_cli.MTikvCli/Get",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MTikvClientServer).Get(ctx, req.(*GetRequest))
+		return srv.(MTikvCliServer).Get(ctx, req.(*GetRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _MTikvClient_Delete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _MTikvCli_Delete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DeleteRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MTikvClientServer).Delete(ctx, in)
+		return srv.(MTikvCliServer).Delete(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/mtikv_cli.MTikvClient/Delete",
+		FullMethod: "/mtikv_cli.MTikvCli/Delete",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MTikvClientServer).Delete(ctx, req.(*DeleteRequest))
+		return srv.(MTikvCliServer).Delete(ctx, req.(*DeleteRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-var _MTikvClient_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "mtikv_cli.MTikvClient",
-	HandlerType: (*MTikvClientServer)(nil),
+var _MTikvCli_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "mtikv_cli.MTikvCli",
+	HandlerType: (*MTikvCliServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
 			MethodName: "BeginTxn",
-			Handler:    _MTikvClient_BeginTxn_Handler,
+			Handler:    _MTikvCli_BeginTxn_Handler,
 		},
 		{
 			MethodName: "CommitTxn",
-			Handler:    _MTikvClient_CommitTxn_Handler,
+			Handler:    _MTikvCli_CommitTxn_Handler,
 		},
 		{
 			MethodName: "Set",
-			Handler:    _MTikvClient_Set_Handler,
+			Handler:    _MTikvCli_Set_Handler,
 		},
 		{
 			MethodName: "Get",
-			Handler:    _MTikvClient_Get_Handler,
+			Handler:    _MTikvCli_Get_Handler,
 		},
 		{
 			MethodName: "Delete",
-			Handler:    _MTikvClient_Delete_Handler,
+			Handler:    _MTikvCli_Delete_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
