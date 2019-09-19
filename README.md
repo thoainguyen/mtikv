@@ -18,14 +18,12 @@ Mini [TiKV](https://github.com/tikv/tikv): A Distributed transactional key-value
 
 ### TxnKV
 
-<div align="center"><img src="./docs/images/txnkvflow.svg" width="500"/></div>
+<div align="center"><img src="./docs/images/txnkvflow.png" width="500"/></div>
 
 
 ### RawKv
 
-<div align="center"><img src="./docs/images/rawkvflow.svg" width="420"/></div>
-
-
+<div align="center"><img src="./docs/images/rawkvflow.png" width="420"/></div>
 
 ## Getting Started
 
