@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/signal"
 	"strings"
-	"sync"
 
 	cmap "github.com/orcaman/concurrent-map"
 	log "github.com/sirupsen/logrus"
@@ -33,26 +32,16 @@ func RunServer(clus *Cluster, dir, port string) error {
 
 	st := store.CreateStore(dir)
 	defer st.Destroy()
+
 	regions := cmap.New()
 
-	var wg sync.WaitGroup
-
-	for idx, _ := range clus.ID {
-		wg.Add(1)
-		go createMvccStore(&regions, idx, st, clus, &wg)
+	for idx := range clus.ID {
+		regions.Set(clus.Cluster[idx], mvcc.CreateMvcc(st, clus.ProposeC[idx], clus.ConfChangeC[idx], clus.ID[idx],
+			strings.Split(clus.Peers[idx], ","), false, fmt.Sprintf("wal-%02s", clus.Cluster[idx])))
 	}
-	wg.Wait()
 
 	serv := mtikv.NewMTiKvService(st, &regions)
 	return RunMTiKvService(ctx, serv, port)
-}
-
-func createMvccStore(regions *cmap.ConcurrentMap, idx int, st *store.Store, clus *Cluster, wg *sync.WaitGroup) {
-
-	region := mvcc.CreateMvcc(st, clus.ProposeC[idx], clus.ConfChangeC[idx], clus.ID[idx],
-		strings.Split(clus.Peers[idx], ","), false, fmt.Sprintf("wal-%02s", clus.Cluster[idx]))
-	regions.Set(clus.Cluster[idx], region)
-	wg.Done()
 }
 
 //RunRaftService run gRPC service

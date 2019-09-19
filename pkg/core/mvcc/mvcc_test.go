@@ -18,7 +18,7 @@ func TestPrewrite(t *testing.T) {
 	confChangeC := make(chan raftpb.ConfChange)
 	defer close(confChangeC)
 
-	st := store.CreateStore("data")
+	st := store.CreateStore("data0")
 	defer st.Destroy()
 
 	m := CreateMvcc(st, proposeC, confChangeC, 1, []string{"http://127.0.0.1:12379"}, false, "wal01")
@@ -62,7 +62,7 @@ func TestCommit(t *testing.T) {
 	confChangeC := make(chan raftpb.ConfChange)
 	defer close(confChangeC)
 
-	st := store.CreateStore("data")
+	st := store.CreateStore("data0")
 	defer st.Destroy()
 
 	m := CreateMvcc(st, proposeC, confChangeC, 1, []string{"http://127.0.0.1:12379"}, false, "wal01")
@@ -114,15 +114,31 @@ func TestCommit(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-	proposeC := make(chan []byte)
-	defer close(proposeC)
-	confChangeC := make(chan raftpb.ConfChange)
-	defer close(confChangeC)
+	proposeC1 := make(chan []byte)
+	defer close(proposeC1)
+	confChangeC1 := make(chan raftpb.ConfChange)
+	defer close(confChangeC1)
 
-	st := store.CreateStore("data")
-	defer st.Destroy()
+	proposeC2 := make(chan []byte)
+	defer close(proposeC2)
+	confChangeC2 := make(chan raftpb.ConfChange)
+	defer close(confChangeC2)
 
-	m := CreateMvcc(st, proposeC, confChangeC, 1, []string{"http://127.0.0.1:12379"}, false, "wal01")
+	proposeC3 := make(chan []byte)
+	defer close(proposeC3)
+	confChangeC3 := make(chan raftpb.ConfChange)
+	defer close(confChangeC3)
+
+	st1 := store.CreateStore("data1")
+	defer st1.Destroy()
+	st2 := store.CreateStore("data2")
+	defer st2.Destroy()
+	st3 := store.CreateStore("data3")
+	defer st3.Destroy()
+
+	m1 := CreateMvcc(st1, proposeC1, confChangeC1, 1, []string{"http://127.0.0.1:12379", "http://127.0.0.1:12389", "http://127.0.0.1:12399"}, false, "wal01")
+	m2 := CreateMvcc(st2, proposeC2, confChangeC2, 2, []string{"http://127.0.0.1:12379", "http://127.0.0.1:12389", "http://127.0.0.1:12399"}, false, "wal02")
+	m3 := CreateMvcc(st3, proposeC3, confChangeC3, 3, []string{"http://127.0.0.1:12379", "http://127.0.0.1:12389", "http://127.0.0.1:12399"}, false, "wal03")
 
 	mutations := []*pb.MvccObject{
 		{
@@ -143,23 +159,23 @@ func TestGet(t *testing.T) {
 		},
 	}
 
-	_, errPrewrite := m.Prewrite(mutations, 1, []byte("thoainh"))
+	_, errPrewrite := m1.Prewrite(mutations, 1, []byte("thoainh"))
 	if errPrewrite != nil {
 		log.Fatal(errPrewrite)
 	}
 
 	// wait for a moment for processing message, otherwise get would be failed.
-	<-time.After(time.Second)
+	<-time.After(2 * time.Second)
 
-	errCommit := m.Commit(1, 2, mutations)
+	errCommit := m2.Commit(1, 2, mutations)
 	if errCommit != nil {
 		log.Fatal(errCommit)
 	}
 
 	// wait for a moment for processing message, otherwise get would be failed.
-	<-time.After(time.Second)
+	<-time.After(2 * time.Second)
 
-	value := m.Get(4, []byte("thoainh"))
+	value := m3.Get(4, []byte("thoainh"))
 
 	if bytes.Compare(value, utils.Marshal(&pb.MvccObject{Value: []byte("Nguyen Huynh Thoai")})) != 0 {
 		t.Errorf("Can't get expected value")

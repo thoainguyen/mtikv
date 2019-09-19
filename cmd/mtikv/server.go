@@ -12,7 +12,6 @@ import (
 )
 
 var (
-	fPd      = flag.String("pd", "127.0.0.1:2379", "placement driver for mtikv")
 	fDir     = flag.String("dir", "dump", "data directory")
 	fPeers   = flag.String("peers", "http://127.0.0.1:9021", "sermi colon separated cluster peers")
 	fId      = flag.String("id", "1", "comma separated region id")
@@ -28,12 +27,12 @@ func main() {
 		id          = strings.Split(*fId, ",")
 		cluster     = strings.Split(*fCluster, ",")
 		peers       = strings.Split(*fPeers, ";")
-		intID       = make([]int, len(peers))
-		proposeC    = make([]chan []byte, len(peers))
-		confChangeC = make([]chan raftpb.ConfChange, len(peers))
+		intID       = make([]int, len(id))
+		proposeC    = make([]chan []byte, len(id))
+		confChangeC = make([]chan raftpb.ConfChange, len(id))
 	)
 
-	for i := 0; i < len(peers); i++ {
+	for i := 0; i < len(id); i++ {
 		intID[i], _ = strconv.Atoi(id[i])
 		proposeC[i] = make(chan []byte)
 		confChangeC[i] = make(chan raftpb.ConfChange)
@@ -42,7 +41,7 @@ func main() {
 	clus := &cmd.Cluster{cluster, intID, peers, proposeC, confChangeC}
 
 	defer func() {
-		for i, _ := range peers {
+		for i, _ := range id {
 			if proposeC[i] != nil {
 				close(proposeC[i])
 			}
