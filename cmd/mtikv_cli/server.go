@@ -3,13 +3,18 @@ package main
 import (
 	"context"
 	"flag"
+	"io"
 	"net"
 	"os"
 	"os/signal"
 	"strconv"
 	"sync/atomic"
+	"time"
 
-	"github.com/labstack/gommon/log"
+	"github.com/thoainguyen/mtikv/pkg/pb/pdpb"
+
+	"log"
+
 	cmap "github.com/orcaman/concurrent-map"
 	pb "github.com/thoainguyen/mtikv/pkg/pb/mtikv_clipb"
 	"google.golang.org/grpc"
@@ -21,8 +26,11 @@ var (
 )
 
 type mtikvCli struct {
-	transID uint64
-	buffer  cmap.ConcurrentMap
+	transID  uint64
+	buffer   cmap.ConcurrentMap
+	client   pdpb.PDClient
+	tsoRecvC chan uint64
+	tsoSendC chan struct{}
 }
 
 type kvBuffer struct {
@@ -51,7 +59,7 @@ func (cli *mtikvCli) BeginTxn(ctx context.Context, in *pb.BeginTxnRequest) (*pb.
 }
 
 func (cli *mtikvCli) CommitTxn(ctx context.Context, in *pb.CommitTxnRequest) (*pb.CommitTxnResponse, error) {
-
+	
 	return nil, nil
 }
 
@@ -88,11 +96,54 @@ func (cli *mtikvCli) Delete(ctx context.Context, in *pb.DeleteRequest) (*pb.Dele
 	return &pb.DeleteResponse{Error: pb.Error_SUCCESS, TransID: in.GetTransID()}, nil
 }
 
-func newMtikvCli() *mtikvCli {
+func newMtikvCli(client pdpb.PDClient, tsoRecvC chan uint64, tsoSendC chan struct{}) *mtikvCli {
 	return &mtikvCli{
-		transID: 0,
-		buffer:  cmap.New(),
+		transID:  0,
+		buffer:   cmap.New(),
+		client:   client,
+		tsoRecvC: tsoRecvC,
+		tsoSendC: tsoSendC,
 	}
+}
+
+func (cli *mtikvCli) getTimeStamp() uint64 {
+	go func() {
+		cli.tsoSendC <- struct{}{}
+	}()
+	return <-cli.tsoRecvC
+
+}
+
+func getTso(client pdpb.PDClient, tsoRecvC chan<- uint64, tsoSendC <-chan struct{}) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	stream, err := client.Tso(ctx)
+	if err != nil {
+		log.Fatal(client, err)
+	}
+	waitc := make(chan struct{})
+	go func() {
+		for {
+			in, err := stream.Recv()
+			if err == io.EOF {
+				// read done.
+				close(waitc)
+				return
+			}
+			if err != nil {
+				log.Fatalf("Failed to receive a note : %v", err)
+			}
+			tsoRecvC <- in.GetTimestamp()
+		}
+	}()
+	for u := range tsoSendC {
+		if err := stream.Send(&pdpb.TsoRequest{}); err != nil {
+			log.Fatalf("Failed to send a note: %v %v", err, u)
+		}
+	}
+	stream.CloseSend()
+	<-waitc
 }
 
 func main() {
@@ -105,21 +156,35 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
+	conn, err := grpc.Dial(*pd)
+	if err != nil {
+		log.Fatalf("fail to dial: %v", err)
+	}
+	defer conn.Close()
+	client := pdpb.NewPDClient(conn)
+
+	tsoRecvC := make(chan uint64)
+	defer close(tsoRecvC)
+	tsoSendC := make(chan struct{})
+	defer close(tsoSendC)
+
+	go getTso(client, tsoRecvC, tsoSendC)
+
 	server := grpc.NewServer()
-	pb.RegisterMTikvCliServer(server, newMtikvCli())
+	pb.RegisterMTikvCliServer(server, newMtikvCli(client, tsoRecvC, tsoSendC))
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 
 	go func() {
 		for range c {
-			log.Info("Shutting down gRPC server...")
+			log.Println("Shutting down gRPC server...")
 			server.GracefulStop()
 			<-ctx.Done()
 		}
 	}()
 
-	log.Info("Start mtikv service port " + *port + " ...")
+	log.Println("Start mtikv service port " + *port + " ...")
 
 	err = server.Serve(listen)
 	if err != nil {
