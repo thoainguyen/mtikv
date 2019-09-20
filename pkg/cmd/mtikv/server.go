@@ -18,8 +18,8 @@ import (
 	"google.golang.org/grpc"
 )
 
-type Cluster struct {
-	Cluster     []string
+type MtikvConfig struct {
+	RaftGroup   []string
 	ID          []int
 	Peers       []string
 	ProposeC    []chan []byte
@@ -27,26 +27,26 @@ type Cluster struct {
 }
 
 //RunServer run gRPC server
-func RunServer(clus *Cluster, dir, port string) error {
+func RunServer(clus *MtikvConfig, dataDir, host string) error {
 	ctx := context.Background()
 
-	st := store.CreateStore(dir)
+	st := store.CreateStore(dataDir)
 	defer st.Destroy()
 
 	regions := cmap.New()
 
 	for idx := range clus.ID {
-		regions.Set(clus.Cluster[idx], mvcc.CreateMvcc(st, clus.ProposeC[idx], clus.ConfChangeC[idx], clus.ID[idx],
-			strings.Split(clus.Peers[idx], ","), false, fmt.Sprintf("wal-%02s", clus.Cluster[idx])))
+		regions.Set(clus.RaftGroup[idx], mvcc.CreateMvcc(st, clus.ProposeC[idx], clus.ConfChangeC[idx], clus.ID[idx],
+			strings.Split(clus.Peers[idx], ","), false, fmt.Sprintf("wal-%02s", clus.RaftGroup[idx])))
 	}
 
 	serv := mtikv.NewMTiKvService(st, &regions)
-	return RunMTiKvService(ctx, serv, port)
+	return RunMTiKvService(ctx, serv, host)
 }
 
 //RunRaftService run gRPC service
-func RunMTiKvService(ctx context.Context, mtikvServer pb.MTikvServer, port string) error {
-	listen, err := net.Listen("tcp", ":"+port)
+func RunMTiKvService(ctx context.Context, mtikvServer pb.MTikvServer, host string) error {
+	listen, err := net.Listen("tcp", host)
 	if err != nil {
 		return err
 	}
@@ -65,6 +65,6 @@ func RunMTiKvService(ctx context.Context, mtikvServer pb.MTikvServer, port strin
 		}
 	}()
 
-	log.Info("Start mtikv service port " + port + " ...")
+	log.Info("Start mtikv service port " + host + " ...")
 	return server.Serve(listen)
 }

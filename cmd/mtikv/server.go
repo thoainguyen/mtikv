@@ -12,11 +12,11 @@ import (
 )
 
 var (
-	fDir     = flag.String("dir", "dump", "data directory")
-	fPeers   = flag.String("peers", "http://127.0.0.1:9021", "sermi colon separated cluster peers")
-	fID      = flag.String("id", "1", "comma separated region id")
-	fCluster = flag.String("cluster", "1", "comma separated cluster id")
-	fPort    = flag.String("port", "12380", "key-value server port")
+	fDir    = flag.String("data-dir", "dump", "data directory")
+	fPeers  = flag.String("peers", "http://127.0.0.1:9021", "sermi colon separated raft peers")
+	fID     = flag.String("raft-id", "1", "comma separated region id")
+	fRGroup = flag.String("raft-group", "1", "comma separated cluster id")
+	fPort   = flag.String("port", "12380", "key-value server port")
 )
 
 func main() {
@@ -25,7 +25,7 @@ func main() {
 
 	var (
 		id          = strings.Split(*fID, ",")
-		cluster     = strings.Split(*fCluster, ",")
+		raftGroup   = strings.Split(*fRGroup, ",")
 		peers       = strings.Split(*fPeers, ";")
 		intID       = make([]int, len(id))
 		proposeC    = make([]chan []byte, len(id))
@@ -38,7 +38,7 @@ func main() {
 		confChangeC[i] = make(chan raftpb.ConfChange)
 	}
 
-	clus := &cmd.Cluster{cluster, intID, peers, proposeC, confChangeC}
+	cfg := &cmd.MtikvConfig{raftGroup, intID, peers, proposeC, confChangeC}
 
 	defer func() {
 		for i := range id {
@@ -51,7 +51,7 @@ func main() {
 		}
 	}()
 
-	if err := cmd.RunServer(clus, *fDir, *fPort); err != nil {
+	if err := cmd.RunServer(cfg, *fDir, *fPort); err != nil {
 		log.Fatal("run server err: ", err)
 		os.Exit(1)
 	}
