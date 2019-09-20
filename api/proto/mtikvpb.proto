@@ -17,13 +17,13 @@ enum MvccOp {
 }
 
 message MvccObject {
-    Op op = 1;
-    int32 cf = 2;
-    bytes key = 3;
+    bytes key = 1;
+    uint64 start_ts = 2;
+    uint64 commit_ts = 3;
     bytes value = 4;
-    bytes primary_key = 5;
-    uint64 start_ts = 6;
-    uint64 commit_ts = 7;
+    Op op = 5;
+    int32 cf = 6;
+    bytes primary_key = 7;
     uint64 latest_commit = 8;
     MvccOp mvcc_op = 9;
 }

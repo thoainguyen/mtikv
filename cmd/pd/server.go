@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	port = ":50051"
+	port = ":2379"
 )
 
 // server is used to implement pd.PDService.
@@ -41,11 +41,12 @@ func (s *server) Tso(stream pb.PD_TsoServer) error {
 }
 
 func main() {
-	
+
 	lis, err := net.Listen("tcp", port)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
+	log.Println("Begin listen on port " + port)
 	s := grpc.NewServer()
 	pb.RegisterPDServer(s, &server{0})
 	if err := s.Serve(lis); err != nil {

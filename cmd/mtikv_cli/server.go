@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"io"
@@ -17,6 +18,7 @@ import (
 
 	cmap "github.com/orcaman/concurrent-map"
 	pb "github.com/thoainguyen/mtikv/pkg/pb/mtikv_clipb"
+	pb1 "github.com/thoainguyen/mtikv/pkg/pb/mtikvpb"
 	"google.golang.org/grpc"
 )
 
@@ -28,9 +30,17 @@ var (
 type mtikvCli struct {
 	transID  uint64
 	buffer   cmap.ConcurrentMap
-	client   pdpb.PDClient
+	cluster  cmap.ConcurrentMap
+	pdCli    pdpb.PDClient
 	tsoRecvC chan uint64
 	tsoSendC chan struct{}
+}
+
+type cluster struct {
+	clusID string
+	from   []byte
+	to     []byte
+	addr   []string
 }
 
 type kvBuffer struct {
@@ -59,8 +69,26 @@ func (cli *mtikvCli) BeginTxn(ctx context.Context, in *pb.BeginTxnRequest) (*pb.
 }
 
 func (cli *mtikvCli) CommitTxn(ctx context.Context, in *pb.CommitTxnRequest) (*pb.CommitTxnResponse, error) {
-	
+	tid := strconv.Itoa(int(in.GetTransID()))
+
+	twoPhaseData := cli.prepareTwoPhaseData(tid)
+	if twoPhaseData == nil {
+		return &pb.CommitTxnResponse{Error: pb.Error_INVALID}, nil
+	}
+
+	// for clusID, cmData := range twoPhaseData {
+	// TODO: Prewire + Commit
+	// }
+
 	return nil, nil
+}
+
+func (cli *mtikvCli) getCluster(clusID string) (cluster, bool) {
+	clus, ok := cli.cluster.Get(clusID)
+	if !ok {
+		return cluster{}, false
+	}
+	return clus.(cluster), true
 }
 
 func (cli *mtikvCli) Set(ctx context.Context, in *pb.SetRequest) (*pb.SetResponse, error) {
@@ -100,7 +128,8 @@ func newMtikvCli(client pdpb.PDClient, tsoRecvC chan uint64, tsoSendC chan struc
 	return &mtikvCli{
 		transID:  0,
 		buffer:   cmap.New(),
-		client:   client,
+		cluster:  cmap.New(),
+		pdCli:    client,
 		tsoRecvC: tsoRecvC,
 		tsoSendC: tsoSendC,
 	}
@@ -156,7 +185,7 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	conn, err := grpc.Dial(*pd)
+	conn, err := grpc.Dial(*pd, grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("fail to dial: %v", err)
 	}
@@ -191,4 +220,53 @@ func main() {
 		log.Fatalf("failed to serve: %v", err)
 	}
 
+}
+
+type CommitData []*pb1.MvccObject
+
+func (cli *mtikvCli) prepareTwoPhaseData(tid string) map[string]CommitData {
+
+	buf, ok := cli.buffer.Get(tid)
+	if !ok {
+		return nil
+	}
+
+	clus := cli.cluster.Items()
+
+	commitData := make(map[string]CommitData, len(clus))
+	kvBuffer := buf.(kvBuffer)
+
+	for clusID := range clus {
+		commitData[clusID] = make(CommitData, 0, 5)
+	}
+
+	for key, value := range kvBuffer.data {
+		for clusK, clusV := range clus {
+			if betweenRightIncl([]byte(key), clusV.(cluster).from, clusV.(cluster).to) {
+				commitData[clusK] = append(commitData[clusK], &pb1.MvccObject{
+					Key:   []byte(key),
+					Value: value,
+				})
+			}
+		}
+	}
+	return commitData
+}
+
+// check if key is between a and b, right inclusive
+func betweenRightIncl(key, a, b []byte) bool {
+	return between(key, a, b) || bytes.Equal(key, b)
+}
+
+// Checks if a key is STRICTLY between two ID's exclusively
+func between(key, a, b []byte) bool {
+	switch bytes.Compare(a, b) {
+	case 1:
+		return bytes.Compare(a, key) == -1 || bytes.Compare(b, key) >= 0
+	case -1:
+		return bytes.Compare(a, key) == -1 && bytes.Compare(b, key) >= 0
+	case 0:
+		return bytes.Compare(a, key) != 0
+	}
+	return false
 }
