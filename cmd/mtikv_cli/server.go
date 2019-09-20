@@ -253,8 +253,7 @@ func main() {
 	ctx := context.Background()
 	// flag.Parse()
 
-	cfg := &config.MTikvClient{}
-	config.LoadConfig()
+	cfg := config.LoadMTikvClientConfig()
 
 	listen, err := net.Listen("tcp", cfg.Host)
 	if err != nil {
@@ -300,7 +299,7 @@ func main() {
 		}
 	}()
 
-	log.Println("Start mtikv service port " + cfg.Host + " ...")
+	log.Println("Start mtikv service host " + cfg.Host + " ...")
 
 	err = server.Serve(listen)
 	if err != nil {

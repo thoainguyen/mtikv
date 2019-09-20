@@ -1,7 +1,7 @@
 Host:  "localhost:8938"
-PD:        "localhost:1928"
+PD:    "localhost:1928"
 RaftGroup:
-  - RaftGroup :
+  - "1" :
       RaftID:  "1"
       From:    "a"
       To:      "i"
@@ -9,14 +9,14 @@ RaftGroup:
         - "localhost:8029"
         - "localhost:8030"
         - "localhost:8931"
-  - RaftGroup :
+  - "2" :
       RaftID: "2"
       From: "j"
       To: "r"
       Address:
         - "localhost:8393"
         - "localhost:8345"
-  - RaftGroup :
+  - "3" :
       RaftID: "3"
       From: "s"
       To: "z"
