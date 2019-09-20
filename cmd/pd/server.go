@@ -6,12 +6,13 @@ import (
 	"net"
 	"sync/atomic"
 
+	"github.com/thoainguyen/mtikv/config"
 	pb "github.com/thoainguyen/mtikv/pkg/pb/pdpb"
 	"google.golang.org/grpc"
 )
 
-const (
-	port = ":2379"
+var (
+	host = "localhost:2379"
 )
 
 // server is used to implement pd.PDService.
@@ -42,11 +43,16 @@ func (s *server) Tso(stream pb.PD_TsoServer) error {
 
 func main() {
 
-	lis, err := net.Listen("tcp", port)
+	cfg := config.LoadPDConfig()
+	if cfg.Host != "" {
+		host = cfg.Host
+	}
+
+	lis, err := net.Listen("tcp", host)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	log.Println("Begin listen on port " + port)
+	log.Println("Begin listen on host " + host)
 	s := grpc.NewServer()
 	pb.RegisterPDServer(s, &server{0})
 	if err := s.Serve(lis); err != nil {

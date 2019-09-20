@@ -1,6 +1,8 @@
 package config
 
 import (
+	"log"
+
 	"github.com/spf13/viper"
 )
 
@@ -17,7 +19,31 @@ type RaftGroup struct {
 type MTikvClient struct {
 	Host      string
 	PD        string
-	RaftGroup []RaftGroup
+	RaftGroup map[string]RaftGroup
+}
+
+type PDConfig struct {
+	Host string
+}
+
+func LoadMTikvClientConfig() *MTikvClient {
+	cfg := &MTikvClient{}
+	LoadConfig()
+
+	if err := viper.Unmarshal(cfg); err != nil {
+		log.Fatal("load config: ", err)
+	}
+	return cfg
+}
+
+func LoadPDConfig() *PDConfig {
+	cfg := &PDConfig{}
+	LoadConfig()
+
+	if err := viper.Unmarshal(cfg); err != nil {
+		log.Fatal("load config: ", err)
+	}
+	return cfg
 }
 
 func LoadConfig() error {

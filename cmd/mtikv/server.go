@@ -16,7 +16,7 @@ var (
 	fPeers  = flag.String("peers", "http://127.0.0.1:9021", "sermi colon separated raft peers")
 	fID     = flag.String("raft-id", "1", "comma separated region id")
 	fRGroup = flag.String("raft-group", "1", "comma separated cluster id")
-	fPort   = flag.String("port", "12380", "key-value server port")
+	fHost   = flag.String("host", ":12380", "key-value server host")
 )
 
 func main() {
@@ -51,7 +51,7 @@ func main() {
 		}
 	}()
 
-	if err := cmd.RunServer(cfg, *fDir, *fPort); err != nil {
+	if err := cmd.RunServer(cfg, *fDir, *fHost); err != nil {
 		log.Fatal("run server err: ", err)
 		os.Exit(1)
 	}
