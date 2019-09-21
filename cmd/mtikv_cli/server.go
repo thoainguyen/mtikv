@@ -10,7 +10,6 @@ import (
 	"os/signal"
 	"strconv"
 	"sync/atomic"
-	"time"
 
 	"github.com/thoainguyen/mtikv/config"
 	"github.com/thoainguyen/mtikv/pkg/pb/pdpb"
@@ -113,8 +112,10 @@ func (cli *mtikvCli) runCommit(startTs, commitTs uint64, primaryKey []byte, rGro
 	}
 	defer conn.Close()
 	mtikvCli := pb1.NewMTikvClient(conn)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+
+	ctx := context.Background()
+	// ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// defer cancel()
 
 	commitResult, _ := mtikvCli.Commit(ctx, &pb1.CommitRequest{})
 
@@ -138,8 +139,10 @@ func (cli *mtikvCli) runPrewrite(startTs uint64, primaryKey []byte, rGroupID str
 	}
 	defer conn.Close()
 	mtikvCli := pb1.NewMTikvClient(conn)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+
+	// ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// defer cancel()
+	ctx := context.Background()
 
 	prewriteResult, _ := mtikvCli.Prewrite(ctx, &pb1.PrewriteRequest{
 		Context: &pb1.Context{
@@ -217,8 +220,9 @@ func (cli *mtikvCli) getTimeStamp() uint64 {
 }
 
 func getTso(client pdpb.PDClient, tsoRecvC chan<- uint64, tsoSendC <-chan struct{}) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	// ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// defer cancel()
+	ctx := context.Background()
 
 	stream, err := client.Tso(ctx)
 	if err != nil {
