@@ -65,6 +65,8 @@ func newKvBuffer() *kvBuffer {
 
 func (cli *mtikvCli) BeginTxn(ctx context.Context, in *pb.BeginTxnRequest) (*pb.BeginTxnResponse, error) {
 	atomic.AddUint64(&cli.transID, 1)
+
+	// TODO: Set transaction value
 	return &pb.BeginTxnResponse{TransID: cli.transID}, nil
 }
 
@@ -175,7 +177,7 @@ func (cli *mtikvCli) Set(ctx context.Context, in *pb.SetRequest) (*pb.SetRespons
 	if !ok {
 		cli.buffer.Set(tid, newKvBuffer())
 	} else {
-		c := reg.(kvBuffer)
+		c := reg.(*kvBuffer)
 		c.Set(in.GetKey(), in.GetValue())
 	}
 	return &pb.SetResponse{TransID: in.GetTransID(), Error: pb.Error_SUCCESS}, nil
@@ -187,8 +189,19 @@ func (cli *mtikvCli) Get(ctx context.Context, in *pb.GetRequest) (*pb.GetRespons
 	if !ok {
 		return &pb.GetResponse{Error: pb.Error_INVALID, TransID: in.GetTransID()}, nil
 	}
-	c := reg.(kvBuffer)
+	c := reg.(*kvBuffer)
 	return &pb.GetResponse{Value: c.Get(in.GetKey()), Error: pb.Error_SUCCESS, TransID: in.GetTransID()}, nil
+}
+
+func (cli *mtikvCli) RollBackTxn(ctx context.Context, in *pb.RollBackTxnRequest) (*pb.RollBackTxnResponse, error) {
+	tid := strconv.Itoa(int(in.GetTransID()))
+	_, ok := cli.buffer.Get(tid)
+	if !ok {
+		return &pb.RollBackTxnResponse{Error: pb.Error_INVALID, TransID: in.GetTransID()}, nil
+	}
+	// _ := reg.(*kvBuffer)
+	// TODO: do rollback Transaction, remove data in buffer
+	return &pb.RollBackTxnResponse{TransID: in.GetTransID()}, nil
 }
 
 func (cli *mtikvCli) Delete(ctx context.Context, in *pb.DeleteRequest) (*pb.DeleteResponse, error) {
@@ -197,7 +210,7 @@ func (cli *mtikvCli) Delete(ctx context.Context, in *pb.DeleteRequest) (*pb.Dele
 	if !ok {
 		return &pb.DeleteResponse{Error: pb.Error_INVALID, TransID: in.GetTransID()}, nil
 	}
-	c := reg.(kvBuffer)
+	c := reg.(*kvBuffer)
 	c.Delete(in.GetKey())
 	return &pb.DeleteResponse{Error: pb.Error_SUCCESS, TransID: in.GetTransID()}, nil
 }
@@ -330,7 +343,7 @@ func (cli *mtikvCli) prepareTwoPhaseData(tid string) (map[string][]*pb1.MvccObje
 	}()
 
 	commitData := make(map[string][]*pb1.MvccObject, len(clus))
-	kvBuffer := buf.(kvBuffer)
+	kvBuffer := buf.(*kvBuffer)
 
 	for clusID := range clus {
 		commitData[clusID] = make([]*pb1.MvccObject, 0, 5)

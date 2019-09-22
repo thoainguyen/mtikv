@@ -23,6 +23,14 @@ message CommitTxnResponse{
     Error error = 2;
 }
 
+message RollBackTxnRequest{
+    uint64 transID = 1;
+}
+message RollBackTxnResponse{
+    uint64 transID = 1;
+    Error error = 2;
+}
+
 message GetRequest{
     uint64 transID = 1;
     bytes key = 2;
@@ -55,6 +63,7 @@ message DeleteResponse{
 service MTikvCli{
     rpc BeginTxn (BeginTxnRequest) returns (BeginTxnResponse) {}
     rpc CommitTxn (CommitTxnRequest) returns (CommitTxnResponse){}
+    rpc RollBackTxn(RollBackTxnRequest) returns (RollBackTxnResponse){}
     rpc Set(SetRequest) returns (SetResponse){}
     rpc Get(GetRequest) returns (GetResponse){}
     rpc Delete(DeleteRequest) returns (DeleteResponse){}

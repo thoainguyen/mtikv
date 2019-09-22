@@ -87,6 +87,7 @@ func main() {
 	fmt.Println("Welcome...")
 
 	var tid uint64
+	var inTxn bool
 
 	for {
 		fmt.Print("-> ")
@@ -99,28 +100,89 @@ func main() {
 			continue
 		}
 
-		tid = Handler(tid, client, params)
+		tid = Handler(tid, &inTxn, client, params)
 	}
 
 }
 
-func Handler(tid uint64, cli pb.MTikvCliClient, pr *Param) uint64 {
+func Handler(tid uint64, inTxn *bool, cli pb.MTikvCliClient, pr *Param) uint64 {
 	ctx := context.Background()
 	switch pr.Op {
 	case "begin":
+		if *inTxn {
+			fmt.Println("-> Please commit, or rollback first")
+			return tid
+		}
 		result, err := cli.BeginTxn(ctx, &pb.BeginTxnRequest{})
 		if err != nil {
 			log.Fatal(err)
 		}
+		*inTxn = true
+		// TODO: check pb.Error
 		return result.GetTransID()
 	case "commit":
+		if !*inTxn {
+			fmt.Println("-> Don't have any transaction before")
+			return tid
+		}
 		result, err := cli.CommitTxn(ctx, &pb.CommitTxnRequest{
 			TransID: tid,
 		})
 		if err != nil {
 			log.Fatal(err)
 		}
+		// TODO: check pb.Error
 		return result.GetTransID()
-		// TODO: other case
+	case "rollback":
+		if !*inTxn {
+			fmt.Println("-> Don't have any transaction before")
+			return tid
+		}
+		result, err := cli.RollBackTxn(ctx, &pb.RollBackTxnRequest{
+			TransID: tid,
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+		// TODO: check pb.Error
+		return result.GetTransID()
+	case "get":
+		if !*inTxn {
+			fmt.Println("-> Don't have any transaction before")
+			return tid
+		}
+		result, err := cli.Get(ctx, &pb.GetRequest{
+			TransID: tid,
+			Key:     []byte(pr.First),
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("-> %s\n", string(result.GetValue()))
+		return result.GetTransID()
+	case "set":
+		result, err := cli.Set(ctx, &pb.SetRequest{
+			TransID: tid,
+			Key:     []byte(pr.First),
+			Value:   []byte(pr.Second),
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+		// TODO: check pb.Error
+		// fmt.Printf("-> %s\n", string(result.GetError()))
+		return result.GetTransID()
+	case "del":
+		result, err := cli.Delete(ctx, &pb.DeleteRequest{
+			TransID: tid,
+			Key:     []byte(pr.First),
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+		// TODO: check pb.Error
+		fmt.Printf("-> %s\n", string(result.GetError()))
+		return result.GetTransID()
 	}
+	return 0
 }
