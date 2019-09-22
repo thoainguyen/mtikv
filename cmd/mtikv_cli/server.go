@@ -95,6 +95,8 @@ func (cli *mtikvCli) CommitTxn(ctx context.Context, in *pb.CommitTxnRequest) (*p
 		}
 	}
 
+	// TODO: return CommitTxnResponse{}
+
 	return nil, nil
 }
 
