@@ -25,11 +25,9 @@ func TestPrewrite(t *testing.T) {
 
 	mutations := []*pb.MvccObject{
 		{
-			Key:        []byte("thoainh"),
-			PrimaryKey: []byte("thoainh"),
-			StartTs:    1,
-			Value:      []byte("Nguyen Huynh Thoai"),
-			Op:         pb.Op_PUT,
+			Key:   []byte("thoainh"),
+			Value: []byte("Nguyen Huynh Thoai"),
+			Op:    pb.Op_PUT,
 		},
 	}
 
@@ -69,12 +67,9 @@ func TestCommit(t *testing.T) {
 
 	mutations := []*pb.MvccObject{
 		{
-			Key:        []byte("thoainh"),
-			PrimaryKey: []byte("thoainh"),
-			StartTs:    1,
-			CommitTs:   2,
-			Value:      []byte("Nguyen Huynh Thoai"),
-			Op:         pb.Op_PUT,
+			Key:   []byte("thoainh"),
+			Value: []byte("Nguyen Huynh Thoai"),
+			Op:    pb.Op_PUT,
 		},
 	}
 
@@ -142,20 +137,14 @@ func TestGet(t *testing.T) {
 
 	mutations := []*pb.MvccObject{
 		{
-			Key:        []byte("thoainh"),
-			PrimaryKey: []byte("thoainh"),
-			StartTs:    1,
-			CommitTs:   2,
-			Value:      []byte("Nguyen Huynh Thoai"),
-			Op:         pb.Op_PUT,
+			Key:   []byte("thoainh"),
+			Value: []byte("Nguyen Huynh Thoai"),
+			Op:    pb.Op_PUT,
 		},
 		{
-			Key:        []byte("thuyenpt"),
-			PrimaryKey: []byte("thoainh"),
-			StartTs:    1,
-			CommitTs:   2,
-			Value:      []byte("Phan Trong Thuyen"),
-			Op:         pb.Op_PUT,
+			Key:   []byte("thuyenpt"),
+			Value: []byte("Phan Trong Thuyen"),
+			Op:    pb.Op_PUT,
 		},
 	}
 
@@ -178,6 +167,24 @@ func TestGet(t *testing.T) {
 	value := m3.Get(4, []byte("thoainh"))
 
 	if bytes.Compare(value, utils.Marshal(&pb.MvccObject{Value: []byte("Nguyen Huynh Thoai")})) != 0 {
+		t.Errorf("Can't get expected value")
+	}
+}
+
+func TestGetNil(t *testing.T) {
+	proposeC1 := make(chan []byte)
+	defer close(proposeC1)
+	confChangeC1 := make(chan raftpb.ConfChange)
+	defer close(confChangeC1)
+
+	st1 := store.CreateStore("data4")
+	defer st1.Destroy()
+
+	m1 := CreateMvcc(st1, proposeC1, confChangeC1, 1, []string{"http://127.0.0.1:12379"}, false, "wal01")
+
+	value := m1.Get(4, []byte("thoainh"))
+
+	if bytes.Compare(value, []byte(nil)) != 0 {
 		t.Errorf("Can't get expected value")
 	}
 }

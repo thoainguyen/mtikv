@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 
+	"github.com/thoainguyen/mtikv/pkg/core/utils"
+
 	cmap "github.com/orcaman/concurrent-map"
 	"github.com/thoainguyen/mtikv/pkg/core/mvcc"
 	"github.com/thoainguyen/mtikv/pkg/core/store"
@@ -11,10 +13,10 @@ import (
 
 type MTiKvService struct {
 	store   *store.Store
-	regions *cmap.ConcurrentMap
+	regions cmap.ConcurrentMap
 }
 
-func NewMTiKvService(store *store.Store, regions *cmap.ConcurrentMap) *MTiKvService {
+func NewMTiKvService(store *store.Store, regions cmap.ConcurrentMap) *MTiKvService {
 	mtikv := &MTiKvService{store, regions}
 	return mtikv
 }
@@ -46,6 +48,13 @@ func (serv MTiKvService) Get(ctx context.Context, in *pb.GetRequest) (*pb.GetRes
 		return &pb.GetResponse{RegionError: pb.Error_RegionNotFound}, nil
 	}
 	value := reg.(*mvcc.Mvcc).Get(in.GetVersion(), in.GetKey())
+	data := &pb.MvccObject{}
+	
+	if len(value) != 0 {
+		utils.Unmarshal(value, data)
+		value = data.GetValue()
+	}
+
 	return &pb.GetResponse{Value: value, RegionError: pb.Error_Ok}, nil
 }
 

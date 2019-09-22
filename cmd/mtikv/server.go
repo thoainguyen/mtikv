@@ -32,7 +32,7 @@ func main() {
 		confChangeC = make([]chan raftpb.ConfChange, len(id))
 	)
 
-	for i := 0; i < len(id); i++ {
+	for i := range id {
 		intID[i], _ = strconv.Atoi(id[i])
 		proposeC[i] = make(chan []byte)
 		confChangeC[i] = make(chan raftpb.ConfChange)

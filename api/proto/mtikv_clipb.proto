@@ -35,6 +35,7 @@ message GetRequest{
     uint64 transID = 1;
     bytes key = 2;
 }
+
 message GetResponse{
     uint64 transID = 1;
     bytes value = 2;
@@ -46,6 +47,7 @@ message SetRequest{
     bytes key = 2;
     bytes value = 3;
 }
+
 message SetResponse{
     uint64 transID = 1;
     Error error = 2;

@@ -106,7 +106,7 @@ func main() {
 }
 
 func Handler(tid uint64, inTxn *bool, cli pb.MTikvCliClient, pr *Param) uint64 {
-	ctx := context.Background()
+	ctx := context.TODO()
 	switch pr.Op {
 	case "begin":
 		if *inTxn {
@@ -118,6 +118,7 @@ func Handler(tid uint64, inTxn *bool, cli pb.MTikvCliClient, pr *Param) uint64 {
 			log.Fatal(err)
 		}
 		*inTxn = true
+		fmt.Println(result.GetTransID())
 		// TODO: check pb.Error
 		return result.GetTransID()
 	case "commit":
@@ -128,11 +129,15 @@ func Handler(tid uint64, inTxn *bool, cli pb.MTikvCliClient, pr *Param) uint64 {
 		result, err := cli.CommitTxn(ctx, &pb.CommitTxnRequest{
 			TransID: tid,
 		})
+		*inTxn = false
 		if err != nil {
 			log.Fatal(err)
 		}
-		// TODO: check pb.Error
-		return result.GetTransID()
+		if result.GetError() == pb.Error_SUCCESS {
+			fmt.Println(result.GetTransID())
+			return result.GetTransID()
+		}
+		return 0
 	case "rollback":
 		if !*inTxn {
 			fmt.Println("-> Don't have any transaction before")
@@ -158,6 +163,7 @@ func Handler(tid uint64, inTxn *bool, cli pb.MTikvCliClient, pr *Param) uint64 {
 		if err != nil {
 			log.Fatal(err)
 		}
+		// fmt.Println(result.GetError(), result.GetTransID())
 		fmt.Printf("-> %s\n", string(result.GetValue()))
 		return result.GetTransID()
 	case "set":
@@ -169,8 +175,9 @@ func Handler(tid uint64, inTxn *bool, cli pb.MTikvCliClient, pr *Param) uint64 {
 		if err != nil {
 			log.Fatal(err)
 		}
+
 		// TODO: check pb.Error
-		// fmt.Printf("-> %s\n", string(result.GetError()))
+		fmt.Println(result.GetTransID())
 		return result.GetTransID()
 	case "del":
 		result, err := cli.Delete(ctx, &pb.DeleteRequest{

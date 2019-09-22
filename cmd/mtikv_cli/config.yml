@@ -16,6 +16,7 @@ RaftGroup:
       Address:
         - "localhost:22383"
         - "localhost:32380"
+        - "localhost:42380"
   - "3" :
       RaftID:  "3"
       From:    "s"

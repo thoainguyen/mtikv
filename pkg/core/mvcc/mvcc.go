@@ -169,7 +169,7 @@ func (m *Mvcc) Get(start_ts uint64, key []byte) []byte {
 		version  = start_ts
 	)
 
-	for version >= 0 {
+	for version > 0 {
 		// TODO : check lock error
 		keyGet = utils.Marshal(&pb.MvccObject{Key: key, CommitTs: version})
 		valueGet = m.store.Get(CF_WRITE, keyGet)

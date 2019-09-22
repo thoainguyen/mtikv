@@ -28,7 +28,7 @@ type MtikvConfig struct {
 
 //RunServer run gRPC server
 func RunServer(clus *MtikvConfig, dataDir, host string) error {
-	ctx := context.Background()
+	ctx := context.TODO()
 
 	st := store.CreateStore(dataDir)
 	defer st.Destroy()
@@ -40,19 +40,20 @@ func RunServer(clus *MtikvConfig, dataDir, host string) error {
 			strings.Split(clus.Peers[idx], ","), false, fmt.Sprintf("wal-%02s", clus.RaftGroup[idx])))
 	}
 
-	serv := mtikv.NewMTiKvService(st, &regions)
+	serv := mtikv.NewMTiKvService(st, regions)
+
 	return RunMTiKvService(ctx, serv, host)
 }
 
 //RunRaftService run gRPC service
-func RunMTiKvService(ctx context.Context, mtikvServer pb.MTikvServer, host string) error {
+func RunMTiKvService(ctx context.Context, serv pb.MTikvServer, host string) error {
 	listen, err := net.Listen("tcp", host)
 	if err != nil {
 		return err
 	}
 
 	server := grpc.NewServer()
-	pb.RegisterMTikvServer(server, mtikvServer)
+	pb.RegisterMTikvServer(server, serv)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
