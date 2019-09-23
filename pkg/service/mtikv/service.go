@@ -25,55 +25,86 @@ func (serv MTiKvService) Prewrite(ctx context.Context, in *pb.PrewriteRequest) (
 	clusterId := in.GetContext().GetClusterId()
 	reg, ok := serv.regions.Get(clusterId)
 	if !ok {
-		return &pb.PrewriteResponse{RegionError: pb.Error_RegionNotFound}, nil
+		return &pb.PrewriteResponse{Error: pb.Error_RegionNotFound}, nil
 	}
-	reg.(*mvcc.Mvcc).Prewrite(in.GetMutation(), in.GetStartVersion(), in.GetPrimaryLock())
-	return &pb.PrewriteResponse{RegionError: pb.Error_Ok}, nil
+	_, err := reg.(*mvcc.Mvcc).Prewrite(in.GetMutation(), in.GetStartVersion(), in.GetPrimaryLock())
+
+	return &pb.PrewriteResponse{Error: err}, nil
 }
 
 func (serv MTiKvService) Commit(ctx context.Context, in *pb.CommitRequest) (*pb.CommitResponse, error) {
 	clusterId := in.GetContext().GetClusterId()
 	reg, ok := serv.regions.Get(clusterId)
 	if !ok {
-		return &pb.CommitResponse{RegionError: pb.Error_RegionNotFound}, nil
+		return &pb.CommitResponse{Error: pb.Error_RegionNotFound}, nil
 	}
-	reg.(*mvcc.Mvcc).Commit(in.GetStartVersion(), in.GetCommitVersion(), in.GetKeys())
-	return &pb.CommitResponse{RegionError: pb.Error_Ok}, nil
+	err := reg.(*mvcc.Mvcc).Commit(in.GetStartVersion(), in.GetCommitVersion(), in.GetKeys())
+	return &pb.CommitResponse{Error: err}, nil
+}
+
+func (serv MTiKvService) ResolveLock(ctx context.Context, in *pb.ResolveLockRequest) (*pb.ResolveLockResponse, error) {
+	// TODO:
+	return nil, nil
+}
+
+func (serv MTiKvService) GC(ctx context.Context, in *pb.GCRequest) (*pb.GetResponse, error) {
+	// TODO:
+	return nil, nil
 }
 
 func (serv MTiKvService) Get(ctx context.Context, in *pb.GetRequest) (*pb.GetResponse, error) {
 	clusterId := in.GetContext().GetClusterId()
 	reg, ok := serv.regions.Get(clusterId)
 	if !ok {
-		return &pb.GetResponse{RegionError: pb.Error_RegionNotFound}, nil
+		return &pb.GetResponse{Error: pb.Error_RegionNotFound}, nil
 	}
 	value := reg.(*mvcc.Mvcc).Get(in.GetVersion(), in.GetKey())
 	data := &pb.MvccObject{}
-	
+
 	if len(value) != 0 {
 		utils.Unmarshal(value, data)
 		value = data.GetValue()
 	}
 
-	return &pb.GetResponse{Value: value, RegionError: pb.Error_Ok}, nil
-}
-
-func (serv MTiKvService) ResolveLock(ctx context.Context, in *pb.ResolveLockRequest) (*pb.ResolveLockResponse, error) {
-	return nil, nil
-}
-
-func (serv MTiKvService) GC(ctx context.Context, in *pb.GCRequest) (*pb.GetResponse, error) {
-	return nil, nil
-}
-
-func (serv MTiKvService) RawGet(ctx context.Context, in *pb.RawGetRequest) (*pb.RawGetResponse, error) {
-	return nil, nil
+	return &pb.GetResponse{Value: value, Error: pb.Error_ErrOk}, nil
 }
 
 func (serv MTiKvService) RawPut(ctx context.Context, in *pb.RawPutRequest) (*pb.RawPutResponse, error) {
-	return nil, nil
+	clusterId := in.GetContext().GetClusterId()
+	reg, ok := serv.regions.Get(clusterId)
+	if !ok {
+		return &pb.RawPutResponse{Error: pb.Error_RegionNotFound}, nil
+	}
+	cmData := []*pb.MvccObject{
+		{
+			Key:   in.GetKey(),
+			Value: in.GetValue(),
+			Op:    pb.Op_PUT,
+		},
+	}
+	_, err := reg.(*mvcc.Mvcc).Prewrite(cmData, in.GetVersion(), in.GetKey())
+	// TODO: Do chua kip sync
+	if err == pb.Error_ErrOk {
+		err = reg.(*mvcc.Mvcc).Commit(in.GetVersion(), in.GetVersion(), cmData)
+	}
+	return &pb.RawPutResponse{Error: err}, nil
 }
 
 func (serv MTiKvService) RawDelete(ctx context.Context, in *pb.RawDeleteRequest) (*pb.RawDeleteResponse, error) {
-	return nil, nil
+	clusterId := in.GetContext().GetClusterId()
+	reg, ok := serv.regions.Get(clusterId)
+	if !ok {
+		return &pb.RawDeleteResponse{Error: pb.Error_RegionNotFound}, nil
+	}
+	cmData := []*pb.MvccObject{
+		{
+			Key: in.GetKey(),
+			Op:  pb.Op_DEL,
+		},
+	}
+	_, err := reg.(*mvcc.Mvcc).Prewrite(cmData, in.GetVersion(), in.GetKey())
+	if err == pb.Error_ErrOk {
+		err = reg.(*mvcc.Mvcc).Commit(in.GetVersion(), in.GetVersion(), cmData)
+	}
+	return &pb.RawDeleteResponse{Error: err}, nil
 }

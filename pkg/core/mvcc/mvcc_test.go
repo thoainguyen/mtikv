@@ -32,7 +32,7 @@ func TestPrewrite(t *testing.T) {
 	}
 
 	_, errPrewrite := m.Prewrite(mutations, 1, []byte("thoainh"))
-	if errPrewrite != nil {
+	if errPrewrite != pb.Error_ErrOk {
 		log.Fatal(errPrewrite)
 	}
 
@@ -74,7 +74,7 @@ func TestCommit(t *testing.T) {
 	}
 
 	_, errPrewrite := m.Prewrite(mutations, 1, []byte("thoainh"))
-	if errPrewrite != nil {
+	if errPrewrite != pb.Error_ErrOk {
 		log.Fatal(errPrewrite)
 	}
 
@@ -82,7 +82,7 @@ func TestCommit(t *testing.T) {
 	<-time.After(2 * time.Second)
 
 	errCommit := m.Commit(1, 2, mutations)
-	if errCommit != nil {
+	if errCommit != pb.Error_ErrOk {
 		log.Fatal(errCommit)
 	}
 
@@ -149,7 +149,7 @@ func TestGet(t *testing.T) {
 	}
 
 	_, errPrewrite := m1.Prewrite(mutations, 1, []byte("thoainh"))
-	if errPrewrite != nil {
+	if errPrewrite != pb.Error_ErrOk {
 		log.Fatal(errPrewrite)
 	}
 
@@ -157,7 +157,7 @@ func TestGet(t *testing.T) {
 	<-time.After(2 * time.Second)
 
 	errCommit := m2.Commit(1, 2, mutations)
-	if errCommit != nil {
+	if errCommit != pb.Error_ErrOk {
 		log.Fatal(errCommit)
 	}
 

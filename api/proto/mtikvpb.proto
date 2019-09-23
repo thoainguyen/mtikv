@@ -29,14 +29,18 @@ message MvccObject {
 }
 
 enum Error {
-    Ok             = 0;
+    ErrOk       = 0;
     RegionNotFound = 1;
     KeyNotInRegion = 2;
+    ErrWriteConflict = 3;
+    ErrKeyIsLocked = 4;
+    ErrLockNotFound = 5;
 }
 
 enum KeyError {
-    WriteConflict = 0;
-    KeyIsLocked = 1;
+    KeyErrOk = 0;
+    WriteConflict = 1;
+    KeyIsLocked = 2;
 }
 
 message Context {
@@ -57,8 +61,8 @@ message PrewriteRequest {
 }
 
 message PrewriteResponse {
-    Error region_error = 1;
-    repeated KeyError errors = 2;
+    Error error = 1;
+    repeated KeyError key_error = 2;
 }
 
 message CommitRequest {
@@ -69,8 +73,8 @@ message CommitRequest {
 }
 
 message CommitResponse {
-    Error region_error = 1;
-    repeated KeyError errors = 2;
+    Error error = 1;
+    repeated KeyError key_error = 2;
 }
 
 message GetRequest {
@@ -80,63 +84,53 @@ message GetRequest {
 }
 
 message GetResponse {
-    Error region_error = 1;
-    KeyError error = 2;
+    Error error = 1;
+    KeyError key_error = 2;
     bytes value = 3;
-    bool not_found = 4;
 }
 
 message ResolveLockRequest {
-    uint64 start_version = 1;
-    uint64 commit_version = 2;
-    repeated bytes keys = 3;
+    Context context = 1;
+    uint64 start_version = 2;
+    uint64 commit_version = 3;
+    repeated bytes keys = 4;
 }
 
 message ResolveLockResponse {
-    Error region_error = 1;
-    KeyError error = 2;
+    Error error = 1;
+    KeyError key_error = 2;
 }
 
 message GCRequest {
-    uint64 safe_point = 1;
+    Context context = 1;
+    uint64 safe_point = 2;
 }
 
 message GCResponse {
-    Error region_error = 1;
-    KeyError error = 2;
+    Error error = 1;
+    KeyError key_error = 2;
 }
 
-message RawGetRequest {
-    bytes key = 1;
-    string cf = 2;
-}
-
-message RawGetResponse {
-    bytes   value = 1;
-    bool    not_found = 2;
-    Error  region_error = 3;
-    KeyError  error = 4;
-}
 
 message RawPutRequest {
-    bytes key = 1;
-    bytes value = 2;
-    string cf = 3;
+    Context context = 1;
+    bytes key = 2;
+    bytes value = 3;
+    uint64 version = 4;
 }
 
 message RawPutResponse {
-    Error region_error = 1;
-    KeyError error = 2;
+    Error error = 1;
 }
 
 message RawDeleteRequest {
-    bytes key = 1;
-    string cf = 2;
+    Context context = 1;
+    bytes key = 2;
+    uint64 version = 3;
 }
 
 message RawDeleteResponse {
-    Error region_error  = 1;
-    KeyError error = 2;
+    Error error  = 1;
 }
 
 
@@ -148,7 +142,6 @@ service MTikv{
     rpc  ResolveLock(ResolveLockRequest) returns (ResolveLockResponse){}
     rpc  GC (GCRequest) returns (GetResponse){}
 
-    rpc  RawGet(RawGetRequest) returns (RawGetResponse){}
     rpc  RawPut(RawPutRequest) returns (RawPutResponse){}
     rpc  RawDelete(RawDeleteRequest) returns (RawDeleteResponse){}
 }

@@ -9,7 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
-	"sync/atomic"
+	"sync"
 	"time"
 
 	"github.com/thoainguyen/mtikv/config"
@@ -30,6 +30,7 @@ import (
 
 type mtikvCli struct {
 	transID    uint64
+	mu         sync.Mutex
 	buffer     cmap.ConcurrentMap
 	raftGroups cmap.ConcurrentMap
 	pdCli      pdpb.PDClient
@@ -69,10 +70,6 @@ func (kv *kvBuffer) GetStartTs() uint64 {
 	return kv.start_ts
 }
 
-// func newKvBuffer() kvBuffer {
-// 	return kvBuffer{data: make(map[string][]byte)}
-// }
-
 func (cli *mtikvCli) getRaftGroupByKey(key []byte) (raftGroup, bool) {
 	rGroups := cli.raftGroups.Items()
 	for u := range rGroups {
@@ -85,9 +82,12 @@ func (cli *mtikvCli) getRaftGroupByKey(key []byte) (raftGroup, bool) {
 }
 
 func (cli *mtikvCli) BeginTxn(ctx context.Context, in *pb.BeginTxnRequest) (*pb.BeginTxnResponse, error) {
-	atomic.AddUint64(&cli.transID, 1)
+	cli.mu.Lock()
+	defer cli.mu.Unlock()
 
-	tid := strconv.FormatUint(atomic.LoadUint64(&cli.transID), 10)
+	cli.transID++
+
+	tid := strconv.FormatUint(cli.transID, 10)
 
 	cli.buffer.Set(tid, kvBuffer{
 		start_ts: cli.getTimeStamp(),
@@ -95,12 +95,12 @@ func (cli *mtikvCli) BeginTxn(ctx context.Context, in *pb.BeginTxnRequest) (*pb.
 	})
 
 	// TODO: Set transaction value
-	return &pb.BeginTxnResponse{TransID: atomic.LoadUint64(&cli.transID)}, nil
+	return &pb.BeginTxnResponse{TransID: cli.transID}, nil
 }
 
 func (cli *mtikvCli) CommitTxn(ctx context.Context, in *pb.CommitTxnRequest) (*pb.CommitTxnResponse, error) {
 
-	tid := strconv.FormatUint(atomic.LoadUint64(&cli.transID), 10)
+	tid := strconv.FormatUint(in.GetTransID(), 10)
 	reg, ok := cli.buffer.Get(tid)
 	if !ok {
 		return &pb.CommitTxnResponse{Error: pb.Error_INVALID, TransID: in.GetTransID()}, nil
@@ -112,6 +112,7 @@ func (cli *mtikvCli) CommitTxn(ctx context.Context, in *pb.CommitTxnRequest) (*p
 		return &pb.CommitTxnResponse{Error: pb.Error_SUCCESS, TransID: in.GetTransID()}, nil
 	}
 
+	// TODO: parallel prewrite
 	for rGroupID, cmData := range twoPhaseData {
 		ok := cli.runPrewrite(c.GetStartTs(), primaryKey, rGroupID, cmData)
 		if !ok {
@@ -121,6 +122,7 @@ func (cli *mtikvCli) CommitTxn(ctx context.Context, in *pb.CommitTxnRequest) (*p
 
 	commitTs := cli.getTimeStamp()
 
+	// TODO: parallel commit
 	for rGroupID, cmData := range twoPhaseData {
 
 		for idx := range cmData {
@@ -155,8 +157,6 @@ func (cli *mtikvCli) runCommit(startTs, commitTs uint64, primaryKey []byte, rGro
 	mtikvCli := pb1.NewMTikvClient(conn)
 
 	ctx := context.TODO()
-	// ctx, cancel := context.WithTimeout(context.TODO(), 10*time.Second)
-	// defer cancel()
 
 	commitResult, _ := mtikvCli.Commit(ctx, &pb1.CommitRequest{
 		Context: &pb1.Context{
@@ -167,7 +167,7 @@ func (cli *mtikvCli) runCommit(startTs, commitTs uint64, primaryKey []byte, rGro
 		CommitVersion: commitTs,
 	})
 
-	if commitResult.GetRegionError() != pb1.Error_Ok {
+	if commitResult.GetError() != pb1.Error_ErrOk {
 		return false
 	}
 
@@ -188,8 +188,6 @@ func (cli *mtikvCli) runPrewrite(startTs uint64, primaryKey []byte, rGroupID str
 	defer conn.Close()
 	mtikvCli := pb1.NewMTikvClient(conn)
 
-	// ctx, cancel := context.WithTimeout(context.TODO(), 10*time.Second)
-	// defer cancel()
 	ctx := context.TODO()
 
 	prewriteResult, _ := mtikvCli.Prewrite(ctx, &pb1.PrewriteRequest{
@@ -201,7 +199,7 @@ func (cli *mtikvCli) runPrewrite(startTs uint64, primaryKey []byte, rGroupID str
 		StartVersion: startTs,
 	})
 
-	if prewriteResult.GetRegionError() != pb1.Error_Ok {
+	if prewriteResult.GetError() != pb1.Error_ErrOk {
 		return false
 	}
 	return true
@@ -216,67 +214,140 @@ func (cli *mtikvCli) getCluster(clusID string) (raftGroup, bool) {
 }
 
 func (cli *mtikvCli) Set(ctx context.Context, in *pb.SetRequest) (*pb.SetResponse, error) {
-	tid := strconv.FormatUint(atomic.LoadUint64(&cli.transID), 10)
-	reg, ok := cli.buffer.Get(tid)
+	tid := strconv.FormatUint(in.GetTransID(), 10)
+	if tid == "0" { // Raw Set
+		err := cli.putToMtikv(in.GetKey(), in.GetValue(), cli.getTimeStamp())
+		switch err {
+		case pb1.Error_KeyNotInRegion, pb1.Error_RegionNotFound:
+			return &pb.SetResponse{TransID: 0, Error: pb.Error_INVALID}, nil
+		case pb1.Error_ErrOk:
+			return &pb.SetResponse{TransID: 0, Error: pb.Error_SUCCESS}, nil
+		default:
+			return &pb.SetResponse{TransID: 0, Error: pb.Error_FAILED}, nil
+		}
+	}
 
+	reg, ok := cli.buffer.Get(tid)
 	if !ok {
 		return &pb.SetResponse{TransID: in.GetTransID(), Error: pb.Error_INVALID}, nil
 	}
 	c := reg.(kvBuffer)
 	c.Set(in.GetKey(), in.GetValue())
-
 	return &pb.SetResponse{TransID: in.GetTransID(), Error: pb.Error_SUCCESS}, nil
 }
 
 func (cli *mtikvCli) Get(ctx context.Context, in *pb.GetRequest) (*pb.GetResponse, error) {
-	tid := strconv.FormatUint(atomic.LoadUint64(&cli.transID), 10)
+	tid := strconv.FormatUint(in.GetTransID(), 10)
+
+	if tid == "0" {
+		return &pb.GetResponse{Value: cli.getFromMtikv(in.GetKey(), cli.getTimeStamp()),
+			Error: pb.Error_SUCCESS, TransID: 0}, nil
+	}
+
 	reg, ok := cli.buffer.Get(tid)
 	if !ok {
-
 		return &pb.GetResponse{Error: pb.Error_INVALID, TransID: in.GetTransID()}, nil
 	}
 	c := reg.(kvBuffer)
 	val := c.Get(in.GetKey())
 
 	if bytes.Compare(val, []byte(nil)) == 0 {
-
-		rg, ok := cli.getRaftGroupByKey(in.GetKey())
-
-		if ok {
-			conn, err := grpc.Dial(rg.addr[rand.Intn(len(rg.addr))], grpc.WithInsecure())
-			if err != nil {
-				log.Fatalf("fail to dial: %v", err)
-			}
-			defer conn.Close()
-			mtikvCli := pb1.NewMTikvClient(conn)
-
-			ctx, cancel := context.WithTimeout(context.TODO(), 2*time.Second)
-			defer cancel()
-			// ctx := context.TODO()
-
-			result, err := mtikvCli.Get(ctx, &pb1.GetRequest{
-				Context: &pb1.Context{
-					ClusterId: rg.raftID,
-				},
-				Version: c.GetStartTs(),
-				Key:     in.GetKey(),
-			})
-
-			if err != nil {
-				log.Println(err)
-			}
-
-			if result.GetRegionError() == pb1.Error_Ok {
-
-				val = result.GetValue()
-			}
-		}
+		val = cli.getFromMtikv(in.GetKey(), c.GetStartTs())
 	}
 	return &pb.GetResponse{Value: val, Error: pb.Error_SUCCESS, TransID: in.GetTransID()}, nil
 }
 
+func (cli *mtikvCli) putToMtikv(key, value []byte, version uint64) pb1.Error {
+	rg, ok := cli.getRaftGroupByKey(key)
+	if ok {
+		conn, err := grpc.Dial(rg.addr[rand.Intn(len(rg.addr))], grpc.WithInsecure())
+		if err != nil {
+			log.Fatalf("fail to dial: %v", err)
+		}
+		defer conn.Close()
+		mtikvCli := pb1.NewMTikvClient(conn)
+
+		ctx, cancel := context.WithTimeout(context.TODO(), 2*time.Second)
+		defer cancel()
+
+		result, err := mtikvCli.RawPut(ctx, &pb1.RawPutRequest{
+			Context: &pb1.Context{
+				ClusterId: rg.raftID,
+			},
+			Key: key, Value: value, Version: version,
+		})
+
+		if err != nil {
+			log.Println(err)
+		}
+		return result.GetError()
+	}
+	return pb1.Error_RegionNotFound
+}
+
+func (cli *mtikvCli) deleteToMtikv(key []byte, version uint64) pb1.Error {
+	rg, ok := cli.getRaftGroupByKey(key)
+	if ok {
+		conn, err := grpc.Dial(rg.addr[rand.Intn(len(rg.addr))], grpc.WithInsecure())
+		if err != nil {
+			log.Fatalf("fail to dial: %v", err)
+		}
+		defer conn.Close()
+		mtikvCli := pb1.NewMTikvClient(conn)
+
+		ctx, cancel := context.WithTimeout(context.TODO(), 2*time.Second)
+		defer cancel()
+
+		result, err := mtikvCli.RawDelete(ctx, &pb1.RawDeleteRequest{
+			Context: &pb1.Context{
+				ClusterId: rg.raftID,
+			},
+			Key: key, Version: version,
+		})
+
+		if err != nil {
+			log.Println(err)
+		}
+		return result.GetError()
+	}
+	return pb1.Error_RegionNotFound
+}
+
+func (cli *mtikvCli) getFromMtikv(key []byte, version uint64) []byte {
+	rg, ok := cli.getRaftGroupByKey(key)
+
+	if ok {
+		conn, err := grpc.Dial(rg.addr[rand.Intn(len(rg.addr))], grpc.WithInsecure())
+		if err != nil {
+			log.Fatalf("fail to dial: %v", err)
+		}
+		defer conn.Close()
+		mtikvCli := pb1.NewMTikvClient(conn)
+
+		ctx, cancel := context.WithTimeout(context.TODO(), 2*time.Second)
+		defer cancel()
+
+		result, err := mtikvCli.Get(ctx, &pb1.GetRequest{
+			Context: &pb1.Context{
+				ClusterId: rg.raftID,
+			},
+			Version: version,
+			Key:     key,
+		})
+
+		if err != nil {
+			log.Println(err)
+		}
+
+		if result.GetError() == pb1.Error_ErrOk {
+			return result.GetValue()
+		}
+	}
+	return nil
+}
+
 func (cli *mtikvCli) RollBackTxn(ctx context.Context, in *pb.RollBackTxnRequest) (*pb.RollBackTxnResponse, error) {
-	tid := strconv.FormatUint(atomic.LoadUint64(&cli.transID), 10)
+	tid := strconv.FormatUint(in.GetTransID(), 10)
 	_, ok := cli.buffer.Get(tid)
 	if !ok {
 		return &pb.RollBackTxnResponse{Error: pb.Error_INVALID, TransID: in.GetTransID()}, nil
@@ -287,7 +358,18 @@ func (cli *mtikvCli) RollBackTxn(ctx context.Context, in *pb.RollBackTxnRequest)
 }
 
 func (cli *mtikvCli) Delete(ctx context.Context, in *pb.DeleteRequest) (*pb.DeleteResponse, error) {
-	tid := strconv.FormatUint(atomic.LoadUint64(&cli.transID), 10)
+	tid := strconv.FormatUint(in.GetTransID(), 10)
+	if tid == "0" { // Raw Del
+		err := cli.deleteToMtikv(in.GetKey(), cli.getTimeStamp())
+		switch err {
+		case pb1.Error_KeyNotInRegion, pb1.Error_RegionNotFound:
+			return &pb.DeleteResponse{TransID: 0, Error: pb.Error_INVALID}, nil
+		case pb1.Error_ErrOk:
+			return &pb.DeleteResponse{TransID: 0, Error: pb.Error_SUCCESS}, nil
+		default:
+			return &pb.DeleteResponse{TransID: 0, Error: pb.Error_FAILED}, nil
+		}
+	}
 	reg, ok := cli.buffer.Get(tid)
 	if !ok {
 		return &pb.DeleteResponse{Error: pb.Error_INVALID, TransID: in.GetTransID()}, nil
@@ -317,8 +399,7 @@ func (cli *mtikvCli) getTimeStamp() uint64 {
 }
 
 func getTso(client pdpb.PDClient, tsoRecvC chan<- uint64, tsoSendC <-chan struct{}) {
-	// ctx, cancel := context.WithTimeout(context.TODO(), 10*time.Second)
-	// defer cancel()
+
 	ctx := context.TODO()
 
 	stream, err := client.Tso(ctx)

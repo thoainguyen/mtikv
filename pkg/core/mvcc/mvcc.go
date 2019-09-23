@@ -1,8 +1,6 @@
 package mvcc
 
 import (
-	"errors"
-
 	"github.com/thoainguyen/mtikv/pkg/core/raftstore"
 	"github.com/thoainguyen/mtikv/pkg/core/store"
 	"github.com/thoainguyen/mtikv/pkg/core/utils"
@@ -31,12 +29,6 @@ type Mvcc struct {
 	kPathDB string
 }
 
-var (
-	ErrorWriteConflict = errors.New("ErrorWriteConflict")
-	ErrorKeyIsLocked   = errors.New("ErrorKeyIsLocked")
-	ErrorLockNotFound  = errors.New("ErrorLockNotFound")
-)
-
 func (m *Mvcc) GetStore() Storage {
 	return m.store
 }
@@ -62,7 +54,7 @@ func (m *Mvcc) Destroy() {}
 
 // prewrite(start_ts, data_list)
 func (m *Mvcc) Prewrite(mutations []*pb.MvccObject, start_ts uint64,
-	primary_key []byte) (keyIsLockedErrors []error, err error) {
+	primary_key []byte) (keyIsLockedErrors []pb.KeyError, err pb.Error) {
 	var (
 		result       []byte
 		prewriteList = mutations[:0]
@@ -79,7 +71,7 @@ func (m *Mvcc) Prewrite(mutations []*pb.MvccObject, start_ts uint64,
 
 			// if commit_ts >= start_ts => return Error WriteConflict
 			if info.GetLatestCommit() >= start_ts {
-				err = ErrorWriteConflict
+				err = pb.Error_ErrWriteConflict
 				return
 			}
 		}
@@ -92,7 +84,7 @@ func (m *Mvcc) Prewrite(mutations []*pb.MvccObject, start_ts uint64,
 
 			// if lock_ts != start_ts => add one KeyIsLocked Error
 			if lock.GetStartTs() != start_ts {
-				keyIsLockedErrors = append(keyIsLockedErrors, ErrorKeyIsLocked)
+				keyIsLockedErrors = append(keyIsLockedErrors, pb.KeyError_KeyIsLocked)
 			}
 		} else {
 			mutation.StartTs = start_ts
@@ -102,7 +94,7 @@ func (m *Mvcc) Prewrite(mutations []*pb.MvccObject, start_ts uint64,
 	}
 	// if KeyIsLocked exist => return slice KeyIsLocked Error
 	if len(keyIsLockedErrors) != 0 {
-		err = ErrorKeyIsLocked
+		err = pb.Error_ErrKeyIsLocked
 		return
 	} else { // commit change, write into rocksdb column family
 		for _, mutation := range prewriteList {
@@ -113,7 +105,7 @@ func (m *Mvcc) Prewrite(mutations []*pb.MvccObject, start_ts uint64,
 }
 
 // commit(keys, start_ts, commit_ts)
-func (m *Mvcc) Commit(start_ts, commit_ts uint64, keys []*pb.MvccObject) error {
+func (m *Mvcc) Commit(start_ts, commit_ts uint64, keys []*pb.MvccObject) pb.Error {
 	var (
 		result     []byte
 		commitList = keys[:0]
@@ -145,11 +137,11 @@ func (m *Mvcc) Commit(start_ts, commit_ts uint64, keys []*pb.MvccObject) error {
 
 				if write.GetOp() != pb.Op_RBACK { // case 'P', 'D', 'L'
 					// the txn is already committed
-					return nil
+					return pb.Error_ErrOk
 				}
 			}
 			// write_type is Rollback or None
-			return ErrorLockNotFound
+			return pb.Error_ErrLockNotFound
 		}
 	}
 
@@ -157,7 +149,7 @@ func (m *Mvcc) Commit(start_ts, commit_ts uint64, keys []*pb.MvccObject) error {
 		m.store.CommitBatch(mutation)
 	}
 
-	return nil
+	return pb.Error_ErrOk
 }
 
 func (m *Mvcc) Get(start_ts uint64, key []byte) []byte {
