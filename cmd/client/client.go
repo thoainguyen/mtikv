@@ -84,12 +84,10 @@ func main() {
 	client := pb.NewMTikvCliClient(conn)
 
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Println("Welcome...")
-
 	var tid uint64
 
 	for {
-		fmt.Print("-> ")
+		fmt.Print("> ")
 		text, _ := reader.ReadString('\n')
 
 		text = strings.Replace(text, "\n", "", -1)
@@ -108,10 +106,6 @@ func Handler(tid uint64, cli pb.MTikvCliClient, pr *Param) uint64 {
 	ctx := context.TODO()
 	switch pr.Op {
 	case "begin":
-		if tid != 0 {
-			fmt.Println("Please commit, or rollback first")
-			return tid
-		}
 		result, err := cli.BeginTxn(ctx, &pb.BeginTxnRequest{})
 		if err != nil {
 			log.Fatal(err)
@@ -120,10 +114,6 @@ func Handler(tid uint64, cli pb.MTikvCliClient, pr *Param) uint64 {
 		// TODO: check pb.Error
 		return result.GetTransID()
 	case "commit":
-		if tid == 0 {
-			fmt.Println("Don't have any transaction before")
-			return tid
-		}
 		result, err := cli.CommitTxn(ctx, &pb.CommitTxnRequest{
 			TransID: tid,
 		})
@@ -131,26 +121,16 @@ func Handler(tid uint64, cli pb.MTikvCliClient, pr *Param) uint64 {
 		if err != nil {
 			log.Fatal(err)
 		}
-		if result.GetError() == pb.Error_SUCCESS {
-			fmt.Println("Commit sucessfully")
-		} else if result.GetError() == pb.Error_FAILED {
-			fmt.Println("Commit failed, data is conficted")
-		} else {
-			fmt.Println("Commit is invalid")
-		}
+		fmt.Println(strings.ToLower(result.GetError().String()))
 		return 0
 	case "rollback":
-		if tid == 0 {
-			fmt.Println("Don't have any transaction before")
-			return tid
-		}
 		result, err := cli.RollBackTxn(ctx, &pb.RollBackTxnRequest{
 			TransID: tid,
 		})
 		if err != nil {
 			log.Fatal(err)
 		}
-		// TODO: check pb.Error
+		fmt.Println(result.GetError().String())
 		return result.GetTransID()
 	case "get":
 		result, err := cli.Get(ctx, &pb.GetRequest{
@@ -160,8 +140,12 @@ func Handler(tid uint64, cli pb.MTikvCliClient, pr *Param) uint64 {
 		if err != nil {
 			log.Fatal(err)
 		}
-		// fmt.Printf("%s\n", string(result.GetValue()))
-		fmt.Println(result.GetError().String(), string(result.GetValue()))
+		val := result.GetValue()
+		if val == nil {
+			fmt.Println("(nil)")
+		} else {
+			fmt.Printf("\"%s\"\n", string(val))
+		}
 		return result.GetTransID()
 	case "set":
 		result, err := cli.Set(ctx, &pb.SetRequest{
@@ -172,9 +156,7 @@ func Handler(tid uint64, cli pb.MTikvCliClient, pr *Param) uint64 {
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		// TODO: check pb.Error
-		fmt.Println(result.GetTransID(), result.GetError().String())
+		fmt.Println(strings.ToLower(result.GetError().String()))
 		return result.GetTransID()
 	case "del":
 		result, err := cli.Delete(ctx, &pb.DeleteRequest{
@@ -184,8 +166,7 @@ func Handler(tid uint64, cli pb.MTikvCliClient, pr *Param) uint64 {
 		if err != nil {
 			log.Fatal(err)
 		}
-		// TODO: check pb.Error
-		fmt.Printf("-> %s\n", string(result.GetError()))
+		fmt.Println(strings.ToLower(result.GetError().String()))
 		return result.GetTransID()
 	}
 	return 0

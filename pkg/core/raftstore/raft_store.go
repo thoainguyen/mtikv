@@ -13,6 +13,7 @@ import (
 type RaftStore struct {
 	store       *store.Store
 	mu          sync.RWMutex
+	raftID      int
 	confChangeC chan<- raftpb.ConfChange
 	proposeC    chan<- []byte
 }
@@ -24,6 +25,7 @@ func CreateRaftStore(store *store.Store, proposeC chan []byte, confChangeC chan 
 
 	rs := &RaftStore{
 		store:       store,
+		raftID:      id,
 		confChangeC: confChangeC,
 		proposeC:    proposeC,
 	}
@@ -35,13 +37,17 @@ func CreateRaftStore(store *store.Store, proposeC chan []byte, confChangeC chan 
 			}
 			mut := &pb.MvccObject{}
 			utils.Unmarshal(*data, mut)
+
 			rs.mu.Lock()
 
 			if mut.MvccOp == pb.MvccOp_PRWITE {
 				rs.store.PrewriteBatch(mut)
 			} else if mut.MvccOp == pb.MvccOp_COMMIT {
 				rs.store.CommitBatch(mut)
+			} else if mut.MvccOp == pb.MvccOp_RAWPUT {
+				rs.store.RawPutBatch(mut)
 			}
+
 			rs.mu.Unlock()
 		}
 		if err, ok := <-errorC; ok {
@@ -70,6 +76,11 @@ func (rs *RaftStore) PrewriteBatch(data *pb.MvccObject) {
 
 func (rs *RaftStore) CommitBatch(data *pb.MvccObject) {
 	data.MvccOp = pb.MvccOp_COMMIT
+	rs.proposeC <- utils.Marshal(data)
+}
+
+func (rs *RaftStore) RawPutBatch(data *pb.MvccObject) {
+	data.MvccOp = pb.MvccOp_RAWPUT
 	rs.proposeC <- utils.Marshal(data)
 }
 

@@ -78,6 +78,42 @@ func (store *Store) Delete(cf int, key []byte) {
 	utils.CheckError(err)
 }
 
+func (store *Store) RawPutBatch(mut *pb.MvccObject) {
+	batch := gorocksdb.NewWriteBatch()
+	batch.PutCF(
+		store.handles[0],
+		utils.Marshal(&pb.MvccObject{
+			Key:     mut.GetKey(),
+			StartTs: mut.GetStartTs(),
+		}),
+		utils.Marshal(&pb.MvccObject{
+			Value: mut.GetValue(),
+		}),
+	)
+	batch.PutCF(
+		store.handles[2],
+		utils.Marshal(&pb.MvccObject{
+			Key:      mut.GetKey(),
+			CommitTs: mut.GetCommitTs(),
+		}),
+		utils.Marshal(&pb.MvccObject{
+			Op:      mut.GetOp(),
+			StartTs: mut.GetStartTs(),
+		}),
+	)
+	batch.PutCF(
+		store.handles[3],
+		utils.Marshal(&pb.MvccObject{
+			Key: mut.GetKey(),
+		}),
+		utils.Marshal(&pb.MvccObject{
+			LatestCommit: mut.GetCommitTs(),
+		}),
+	)
+	err := store.db.Write(store.wrOpts, batch)
+	utils.CheckError(err)
+}
+
 func (store *Store) PrewriteBatch(mut *pb.MvccObject) {
 	batch := gorocksdb.NewWriteBatch()
 	batch.PutCF(
@@ -85,7 +121,7 @@ func (store *Store) PrewriteBatch(mut *pb.MvccObject) {
 		utils.Marshal(&pb.MvccObject{
 			Key:     mut.GetKey(),
 			StartTs: mut.GetStartTs(),
-		}), 
+		}),
 		utils.Marshal(&pb.MvccObject{
 			Value: mut.GetValue(),
 		}),

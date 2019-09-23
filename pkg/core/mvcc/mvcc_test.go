@@ -5,6 +5,7 @@ import (
 	"log"
 	"testing"
 	"time"
+	_ "time"
 
 	"github.com/thoainguyen/mtikv/pkg/core/store"
 	"github.com/thoainguyen/mtikv/pkg/core/utils"

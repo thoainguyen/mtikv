@@ -75,18 +75,13 @@ func (serv MTiKvService) RawPut(ctx context.Context, in *pb.RawPutRequest) (*pb.
 	if !ok {
 		return &pb.RawPutResponse{Error: pb.Error_RegionNotFound}, nil
 	}
-	cmData := []*pb.MvccObject{
-		{
-			Key:   in.GetKey(),
-			Value: in.GetValue(),
-			Op:    pb.Op_PUT,
-		},
-	}
-	_, err := reg.(*mvcc.Mvcc).Prewrite(cmData, in.GetVersion(), in.GetKey())
-	// TODO: Do chua kip sync
-	if err == pb.Error_ErrOk {
-		err = reg.(*mvcc.Mvcc).Commit(in.GetVersion(), in.GetVersion(), cmData)
-	}
+
+	err := reg.(*mvcc.Mvcc).RawPut(&pb.MvccObject{
+		Key:   in.GetKey(),
+		Value: in.GetValue(),
+		Op:    pb.Op_PUT,
+	}, in.GetVersion())
+
 	return &pb.RawPutResponse{Error: err}, nil
 }
 
@@ -96,15 +91,9 @@ func (serv MTiKvService) RawDelete(ctx context.Context, in *pb.RawDeleteRequest)
 	if !ok {
 		return &pb.RawDeleteResponse{Error: pb.Error_RegionNotFound}, nil
 	}
-	cmData := []*pb.MvccObject{
-		{
-			Key: in.GetKey(),
-			Op:  pb.Op_DEL,
-		},
-	}
-	_, err := reg.(*mvcc.Mvcc).Prewrite(cmData, in.GetVersion(), in.GetKey())
-	if err == pb.Error_ErrOk {
-		err = reg.(*mvcc.Mvcc).Commit(in.GetVersion(), in.GetVersion(), cmData)
-	}
+	err := reg.(*mvcc.Mvcc).RawPut(&pb.MvccObject{
+		Key: in.GetKey(),
+		Op:  pb.Op_DEL,
+	}, in.GetVersion())
 	return &pb.RawDeleteResponse{Error: err}, nil
 }

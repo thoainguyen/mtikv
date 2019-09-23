@@ -21,6 +21,7 @@ type Storage interface {
 	Delete(cf int, key []byte)
 	PrewriteBatch(data *pb.MvccObject)
 	CommitBatch(data *pb.MvccObject)
+	RawPutBatch(data *pb.MvccObject)
 	Destroy()
 }
 
@@ -51,6 +52,20 @@ func CreateMvccV1(st *store.Store) *Mvcc {
 }
 
 func (m *Mvcc) Destroy() {}
+
+func (m *Mvcc) RawPut(mutation *pb.MvccObject, start_ts uint64) pb.Error {
+	// get key's lock info
+	var result = m.store.Get(CF_LOCK, utils.Marshal(&pb.MvccObject{Key: mutation.GetKey()}))
+	// if lock exist
+	if len(result) != 0 {
+		return pb.Error_ErrWriteConflict
+	}
+	mutation.StartTs = start_ts
+	mutation.CommitTs = start_ts
+	mutation.PrimaryKey = mutation.GetKey()
+	m.store.RawPutBatch(mutation)
+	return pb.Error_ErrOk
+}
 
 // prewrite(start_ts, data_list)
 func (m *Mvcc) Prewrite(mutations []*pb.MvccObject, start_ts uint64,
