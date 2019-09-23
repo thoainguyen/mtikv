@@ -4,9 +4,9 @@ import (
 	"log"
 	"sync"
 
-	"github.com/thoainguyen/mtikv/pkg/core/store"
-	"github.com/thoainguyen/mtikv/pkg/core/utils"
-	pb "github.com/thoainguyen/mtikv/pkg/pb/mtikvpb"
+	"github.com/thoainguyen/mtikv/pkg/store"
+	pb "github.com/thoainguyen/mtikv/proto/mtikvpb"
+	"github.com/thoainguyen/mtikv/utils"
 	"go.etcd.io/etcd/raft/raftpb"
 )
 

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"unicode"
 
-	pb "github.com/thoainguyen/mtikv/pkg/pb/mtikv_clipb"
+	pb "github.com/thoainguyen/mtikv/proto/mtikv_clipb"
 	"google.golang.org/grpc"
 )
 
@@ -110,8 +110,6 @@ func Handler(tid uint64, cli pb.MTikvCliClient, pr *Param) uint64 {
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Println(result.GetTransID())
-		// TODO: check pb.Error
 		return result.GetTransID()
 	case "commit":
 		result, err := cli.CommitTxn(ctx, &pb.CommitTxnRequest{
@@ -131,7 +129,7 @@ func Handler(tid uint64, cli pb.MTikvCliClient, pr *Param) uint64 {
 			log.Fatal(err)
 		}
 		fmt.Println(result.GetError().String())
-		return result.GetTransID()
+		return 0
 	case "get":
 		result, err := cli.Get(ctx, &pb.GetRequest{
 			TransID: tid,

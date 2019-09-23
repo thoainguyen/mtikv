@@ -1,0 +1,4 @@
+mtikv1: go run server.go --node 1
+mtikv2: go run server.go --node 2
+mtikv3: go run server.go --node 3
+mtikv4: go run server.go --node 4

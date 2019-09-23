@@ -2,8 +2,8 @@ package store
 
 import (
 	"github.com/tecbot/gorocksdb"
-	"github.com/thoainguyen/mtikv/pkg/core/utils"
-	pb "github.com/thoainguyen/mtikv/pkg/pb/mtikvpb"
+	pb "github.com/thoainguyen/mtikv/proto/mtikvpb"
+	"github.com/thoainguyen/mtikv/utils"
 )
 
 type Store struct {

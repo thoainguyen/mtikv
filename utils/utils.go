@@ -8,17 +8,13 @@ import (
 
 func Marshal(pb proto.Message) []byte {
 	data, err := proto.Marshal(pb)
-	if err != nil {
-		log.Fatal(err)
-	}
+	CheckError(err)
 	return data
 }
 
 func Unmarshal(buf []byte, pb proto.Message) {
 	err := proto.Unmarshal(buf, pb)
-	if err != nil {
-		log.Fatal(err)
-	}
+	CheckError(err)
 }
 
 func CheckError(err error) {
