@@ -24,14 +24,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-// var (
-// 	fDir    = flag.String("data-dir", "dump", "data directory")
-// 	fPeers  = flag.String("peers", "http://127.0.0.1:9021", "sermi colon separated raft peers")
-// 	fID     = flag.String("raft-id", "1", "comma separated region id")
-// 	fRGroup = flag.String("raft-group", "1", "comma separated cluster id")
-// 	fHost   = flag.String("host", ":12380", "key-value server host")
-// )
-
 var (
 	fNode = flag.String("node", "1", "mtikv node id")
 )

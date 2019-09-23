@@ -4,14 +4,22 @@ Mini [TiKV](https://github.com/tikv/tikv): A Distributed transactional key-value
 
 ## Architecture
 
-### Overview
+### Overall
 
-<div align="center"><img src="./docs/images/mtikv.png" width="500"/></div>
+<div align="center"><img src="./docs/images/mtikv.png" width="600"/></div>
 
 
-### Raft group
+### Mtikv instance
+
+<div align="center">
+<img src="./docs/images/one-instance.png" width="350"/>
+</div>
+
+
+### Raft Group
 
 <div align="center"><img src="./docs/images/mtikv-raft-group.png" width="500"/></div>
+
 
 
 ## Flow
@@ -21,7 +29,7 @@ Mini [TiKV](https://github.com/tikv/tikv): A Distributed transactional key-value
 <div align="center"><img src="./docs/images/txnkvflow.png" width="500"/></div>
 
 
-### RawKv
+### RawKV
 
 <div align="center"><img src="./docs/images/rawkvflow.png" width="420"/></div>
 
