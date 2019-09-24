@@ -137,7 +137,12 @@ func (serv *mtikvServ) GC(ctx context.Context, in *pb.GCRequest) (*pb.GetRespons
 	return nil, nil
 }
 
+func (serv *mtikvServ) PingPong(ctx context.Context, in *pb.PingRequest) (*pb.PongReponse, error) { // check health of grpc Server
+	return &pb.PongReponse{}, nil
+}
+
 func (serv *mtikvServ) Get(ctx context.Context, in *pb.GetRequest) (*pb.GetResponse, error) {
+
 	clusterId := in.GetContext().GetClusterId()
 	reg, ok := serv.regions.Get(clusterId)
 	if !ok {

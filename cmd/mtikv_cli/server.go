@@ -133,7 +133,7 @@ func (cli *mtikvCli) CommitTxn(ctx context.Context, in *clipb.CommitTxnRequest) 
 	return &clipb.CommitTxnResponse{TransID: in.GetTransID(), Error: clipb.Error_SUCCESS}, nil
 }
 
-func (cli *mtikvCli) tryToConnect(rid string) (*grpc.ClientConn, error) {
+func (cli *mtikvCli) tryToConnect(rid string) (*grpc.ClientConn, pb.MTikvClient, error) {
 
 	var (
 		conn *grpc.ClientConn
@@ -144,25 +144,26 @@ func (cli *mtikvCli) tryToConnect(rid string) (*grpc.ClientConn, error) {
 	if ok {
 		rGroup := rg.(raftGroup)
 		for i := range rGroup.addr {
-			conn, err = grpc.Dial(rGroup.addr[i], grpc.WithInsecure())
+			conn, _ = grpc.Dial(rGroup.addr[i], grpc.WithInsecure())
+			mCli := pb.NewMTikvClient(conn)
+			_, err = mCli.PingPong(context.TODO(), &pb.PingRequest{})TsoRequest
+
 			if err == nil {
-				return conn, err
+				return conn, mCli, nil
 			}
 		}
 	}
 
-	return conn, err
+	return conn, nil, err
 }
 
 func (cli *mtikvCli) runCommit(startTs, commitTs uint64, primaryKey []byte, rGroupID string, cmData []*pb.MvccObject) bool {
 
-	conn, err := cli.tryToConnect(rGroupID)
+	conn, mtikvCli, err := cli.tryToConnect(rGroupID)
 	if err != nil {
 		return false
 	}
 	defer conn.Close()
-
-	mtikvCli := pb.NewMTikvClient(conn)
 
 	ctx := context.TODO()
 
@@ -184,13 +185,11 @@ func (cli *mtikvCli) runCommit(startTs, commitTs uint64, primaryKey []byte, rGro
 
 func (cli *mtikvCli) runPrewrite(startTs uint64, primaryKey []byte, rGroupID string, cmData []*pb.MvccObject) bool {
 
-	conn, err := cli.tryToConnect(rGroupID)
+	conn, mtikvCli, err := cli.tryToConnect(rGroupID)
 	if err != nil {
 		return false
 	}
 	defer conn.Close()
-
-	mtikvCli := pb.NewMTikvClient(conn)
 
 	ctx := context.TODO()
 
@@ -268,13 +267,11 @@ func (cli *mtikvCli) putToMtikv(key, value []byte, version uint64) pb.Error {
 		return pb.Error_RegionNotFound
 	}
 
-	conn, err := cli.tryToConnect(rid)
+	conn, mtikvCli, err := cli.tryToConnect(rid)
 	if err != nil {
 		return pb.Error_RegionNotFound
 	}
 	defer conn.Close()
-
-	mtikvCli := pb.NewMTikvClient(conn)
 
 	ctx, cancel := context.WithTimeout(context.TODO(), 2*time.Second)
 	defer cancel()
@@ -300,13 +297,11 @@ func (cli *mtikvCli) deleteToMtikv(key []byte, version uint64) pb.Error {
 		return pb.Error_RegionNotFound
 	}
 
-	conn, err := cli.tryToConnect(rid)
+	conn, mtikvCli, err := cli.tryToConnect(rid)
 	if err != nil {
 		return pb.Error_RegionNotFound
 	}
 	defer conn.Close()
-
-	mtikvCli := pb.NewMTikvClient(conn)
 
 	ctx, cancel := context.WithTimeout(context.TODO(), 2*time.Second)
 	defer cancel()
@@ -332,13 +327,11 @@ func (cli *mtikvCli) getFromMtikv(key []byte, version uint64) []byte {
 		return nil
 	}
 
-	conn, err := cli.tryToConnect(rid)
+	conn, mtikvCli, err := cli.tryToConnect(rid)
 	if err != nil {
 		return nil
 	}
 	defer conn.Close()
-
-	mtikvCli := pb.NewMTikvClient(conn)
 
 	ctx, cancel := context.WithTimeout(context.TODO(), 2*time.Second)
 	defer cancel()

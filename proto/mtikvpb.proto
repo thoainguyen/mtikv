@@ -134,6 +134,9 @@ message RawDeleteResponse {
     Error error  = 1;
 }
 
+message PingRequest{}
+message PongReponse{}
+
 
 service MTikv{
     
@@ -142,6 +145,8 @@ service MTikv{
     rpc  Get(GetRequest) returns (GetResponse){}
     rpc  ResolveLock(ResolveLockRequest) returns (ResolveLockResponse){}
     rpc  GC (GCRequest) returns (GetResponse){}
+
+    rpc  PingPong(PingRequest) returns (PongReponse) {}
 
     rpc  RawPut(RawPutRequest) returns (RawPutResponse){}
     rpc  RawDelete(RawDeleteRequest) returns (RawDeleteResponse){}
