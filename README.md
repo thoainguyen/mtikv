@@ -36,7 +36,7 @@ Mini [TiKV](https://github.com/tikv/tikv): A Distributed transactional key-value
 
 ### Prerequisites
 
-* **Go complier**: https://golang.org/dl/
+* **Go**: https://golang.org/doc/install
 
 * **RocksDB:**
     1. Clone repo `Rocksdb`:
@@ -46,11 +46,11 @@ Mini [TiKV](https://github.com/tikv/tikv): A Distributed transactional key-value
     $ git clone https://github.com/facebook/rocksdb.git
     ```
 
-    2. Follow [THIS GUIDE](https://github.com/facebook/rocksdb/blob/master/INSTALL.md) to build rocksdb
+    2. Follow [THIS GUIDE](https://github.com/facebook/rocksdb/blob/master/INSTALL.md) to install rocksdb
 
 * **Gorocksdb:**
 
-    1. Set enviroment variable
+    1. Set CGO variable
 
     ```sh
     export CGO_CFLAGS="-I/home/$USER/Downloads/rocksdb/include"
@@ -72,6 +72,7 @@ Mini [TiKV](https://github.com/tikv/tikv): A Distributed transactional key-value
     ```
 
 ## Deployment
+
 
 
 ### 1. Run PD:
@@ -104,7 +105,7 @@ $ go run server.go --node 4 // in another shell
 
 First install [goreman](https://github.com/mattn/goreman), which manages Procfile-based applications.
 
-The [Procfile](./cmd/mtikv/Procfile) script will set up a local example cluster. Start it with:
+The [Procfile](./cmd/mtikv/Procfile) script will set up a local mtikv cluster. Start it with:
 
 ```sh
 $ goreman start
