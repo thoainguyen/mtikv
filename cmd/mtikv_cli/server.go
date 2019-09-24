@@ -146,21 +146,21 @@ func (cli *mtikvCli) tryToConnect(rid string) (*grpc.ClientConn, error) {
 		for i := range rGroup.addr {
 			conn, err = grpc.Dial(rGroup.addr[i], grpc.WithInsecure())
 			if err == nil {
-				break
+				return conn, err
 			}
 		}
 	}
+
 	return conn, err
 }
 
 func (cli *mtikvCli) runCommit(startTs, commitTs uint64, primaryKey []byte, rGroupID string, cmData []*pb.MvccObject) bool {
 
 	conn, err := cli.tryToConnect(rGroupID)
-	defer conn.Close()
-
 	if err != nil {
 		return false
 	}
+	defer conn.Close()
 
 	mtikvCli := pb.NewMTikvClient(conn)
 
@@ -185,11 +185,10 @@ func (cli *mtikvCli) runCommit(startTs, commitTs uint64, primaryKey []byte, rGro
 func (cli *mtikvCli) runPrewrite(startTs uint64, primaryKey []byte, rGroupID string, cmData []*pb.MvccObject) bool {
 
 	conn, err := cli.tryToConnect(rGroupID)
-	defer conn.Close()
-
 	if err != nil {
 		return false
 	}
+	defer conn.Close()
 
 	mtikvCli := pb.NewMTikvClient(conn)
 
@@ -270,11 +269,10 @@ func (cli *mtikvCli) putToMtikv(key, value []byte, version uint64) pb.Error {
 	}
 
 	conn, err := cli.tryToConnect(rid)
-	defer conn.Close()
-
 	if err != nil {
 		return pb.Error_RegionNotFound
 	}
+	defer conn.Close()
 
 	mtikvCli := pb.NewMTikvClient(conn)
 
@@ -303,11 +301,10 @@ func (cli *mtikvCli) deleteToMtikv(key []byte, version uint64) pb.Error {
 	}
 
 	conn, err := cli.tryToConnect(rid)
-	defer conn.Close()
-
 	if err != nil {
 		return pb.Error_RegionNotFound
 	}
+	defer conn.Close()
 
 	mtikvCli := pb.NewMTikvClient(conn)
 
@@ -336,11 +333,10 @@ func (cli *mtikvCli) getFromMtikv(key []byte, version uint64) []byte {
 	}
 
 	conn, err := cli.tryToConnect(rid)
-	defer conn.Close()
-
 	if err != nil {
 		return nil
 	}
+	defer conn.Close()
 
 	mtikvCli := pb.NewMTikvClient(conn)
 
