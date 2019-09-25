@@ -146,7 +146,7 @@ func (cli *mtikvCli) tryToConnect(rid string) (*grpc.ClientConn, pb.MTikvClient,
 		for i := range rGroup.addr {
 			conn, _ = grpc.Dial(rGroup.addr[i], grpc.WithInsecure())
 			mCli := pb.NewMTikvClient(conn)
-			_, err = mCli.PingPong(context.TODO(), &pb.PingRequest{})TsoRequest
+			_, err = mCli.PingPong(context.TODO(), &pb.PingRequest{})
 
 			if err == nil {
 				return conn, mCli, nil
